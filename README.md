@@ -121,5 +121,6 @@ MacroKeypad의 키 매핑 설정은 JSON 파일로 저장 및 복원이 가능�
 - HTTPS로 접속했는지 확인하세요.
 
 ---
+https://www.youtube.com/shorts/1fJLQFC10AU
 
 이 문서를 참고하여 MacroKeypad를 원활히 사용하시기 바랍니다.
