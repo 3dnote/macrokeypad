@@ -256,6 +256,32 @@
         const writer = port.writable.getWriter();
         await writer.write(new TextEncoder().encode(payload + "\n"));
         writer.releaseLock();
+
+        // acknowledgement 읽기
+        try {
+            const textDecoder = new TextDecoder();
+            reader = port.readable.getReader();
+            let line = "";
+            const start = Date.now();
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                line += textDecoder.decode(value);
+                if (line.includes("\n")) break;
+                if (Date.now() - start > 3000) {
+                    debugLog("⚠️ 기기 응답 없음 (timeout)");
+                    break;
+                }
+            }
+            reader.releaseLock();
+            if (line.length) {
+                const trimmed = line.trim();
+                debugLog("Device response: " + trimmed.replace(/</g,'&lt;'));
+            }
+        } catch (e) {
+            debugLog("Error reading response: " + e.message);
+            if (reader) try { reader.releaseLock(); } catch(err){}
+        }
     }
 
     function sendReset() { if(confirm("기기를 초기 공장설정으로 리셋하시겠습니까?")) sendCommand("RESET"); }
@@ -327,6 +353,16 @@
                 }
                 debugLog('JSON 파싱 및 구조 검증 성공!');
                 config = parsed;
+                // debug: 각 키값 확인
+                try {
+                    config.layers.forEach((layer, li) => {
+                        layer.keys.forEach((k, ki) => {
+                            debugLog(`[uploaded] L${li} K${ki} = ` + JSON.stringify(k));
+                        });
+                    });
+                } catch(e) {
+                    debugLog('uploaded inspect failed: ' + e.message);
+                }
                 // 웹UI에서만 layerTitles 관리: 기기에서 오면 없으니 기본값으로 생성
                 if (!config.layerTitles || !Array.isArray(config.layerTitles) || config.layerTitles.length !== 4) {
                     config.layerTitles = ["레이어 1", "레이어 2", "레이어 3", "레이어 4"];
