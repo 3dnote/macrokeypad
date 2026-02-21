@@ -11,225 +11,163 @@
             --accent: #4f8cff;
             --text: #e0e6ed;
             --border: rgba(255, 255, 255, 0.1);
-            --frosted: blur(10px);
         }
-
-        body {
-            margin: 0; padding: 0; font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark); color: var(--text);
-            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-        }
-
-        /* --- Header --- */
-        header {
-            padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
-            background: rgba(15, 17, 26, 0.8); backdrop-filter: var(--frosted); border-bottom: 1px solid var(--border);
-        }
-        .btn {
-            background: var(--accent); color: white; border: none; padding: 8px 16px;
-            border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s;
-        }
-        .btn:disabled { background: #444; opacity: 0.5; }
-        .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
-
-        /* --- Main Layout --- */
-        main {
-            display: flex; flex: 1; overflow: hidden;
-        }
-
-        /* Sidebar (PC Only) */
-        .sidebar {
-            width: 240px; border-right: 1px solid var(--border); padding: 20px;
-            display: flex; flex-direction: column; gap: 20px;
-        }
-        @media (max-width: 900px) { .sidebar { display: none; } }
-
-        /* Canvas (Keypad Area) */
-        .canvas {
-            flex: 1; padding: 40px; display: flex; flex-direction: column; align-items: center;
-            overflow-y: auto; background: radial-gradient(circle at center, #1e2233 0%, #0f111a 100%);
-        }
-
-        /* Layer Tabs */
-        .layer-tabs {
-            display: flex; gap: 10px; margin-bottom: 30px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px;
-        }
-        .tab {
-            padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.3s;
-        }
-        .tab.active { background: var(--accent); box-shadow: 0 4px 15px rgba(79, 140, 255, 0.4); }
-
-        /* Key Grid */
-        .grid-container {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
-            max-width: 400px; width: 100%;
-        }
-        .key-node {
-            aspect-ratio: 1/1; background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 15px; display: flex; flex-direction: column; justify-content: center;
-            align-items: center; cursor: pointer; transition: 0.2s; text-align: center; padding: 10px;
-        }
-        .key-node:hover { border-color: var(--accent); transform: translateY(-2px); }
-        .key-node.active { border-color: var(--accent); box-shadow: 0 0 20px rgba(79,140,255,0.2); background: rgba(79,140,255,0.1); }
-        .key-id { font-size: 10px; opacity: 0.5; margin-bottom: 5px; }
-        .key-val { font-size: 13px; font-weight: bold; word-break: break-all; }
-
-        /* Inspector (Right Side) */
-        .inspector {
-            width: 320px; background: var(--panel-bg); backdrop-filter: var(--frosted);
-            border-left: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; gap: 20px;
-        }
-
-        /* --- Mobile Specific (Bottom Sheet) --- */
-        @media (max-width: 900px) {
+        body { margin: 0; font-family: sans-serif; background: var(--bg-dark); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 17, 26, 0.8); border-bottom: 1px solid var(--border); }
+        .btn { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        main { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Canvas */
+        .canvas { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 300px; }
+        .key-node { background: var(--panel-bg); border: 2px solid var(--border); border-radius: 12px; aspect-ratio: 1/1; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; }
+        .key-node.active { border-color: var(--accent); background: rgba(79, 140, 255, 0.1); }
+        
+        /* Inspector */
+        .inspector { width: 300px; background: #161925; border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        select, input { background: #0b0d12; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; }
+        
+        @media (max-width: 800px) {
             main { flex-direction: column; }
-            .inspector {
-                position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh;
-                border-left: none; border-top: 1px solid var(--border);
-                border-radius: 25px 25px 0 0; z-index: 100; transform: translateY(0);
-                padding: 20px; box-sizing: border-box;
-            }
-            .canvas { padding: 20px; padding-bottom: 55vh; }
-        }
-
-        /* --- Form Elements --- */
-        .form-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 12px; color: #888; }
-        select, input {
-            background: #0b0d12; border: 1px solid var(--border); color: white;
-            padding: 10px; border-radius: 6px; outline: none;
+            .inspector { width: 100%; border-left: none; border-top: 1px solid var(--border); }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold; font-size: 18px;">MacroKeypad <span id="fw-ver" style="font-size: 10px; opacity: 0.5;">v0.4.1</span></div>
+    <div style="font-weight: bold;">MacroKeypad <span id="status-dot" style="color: gray;">●</span></div>
     <div style="display: flex; gap: 10px;">
         <button id="connect-btn" class="btn">기기 연결</button>
-        <button id="disconnect-btn" class="btn btn-outline" disabled>해제</button>
+        <button id="disconnect-btn" class="btn" style="background:#444" disabled>해제</button>
     </div>
 </header>
 
 <main>
-    <div class="sidebar">
-        <label>Key List (Drag to Key)</label>
-        <input type="text" id="search-key" placeholder="검색: A, F1, Alt...">
-        <div id="key-list-scroll" style="flex:1; overflow-y:auto; font-size: 13px;">
-            </div>
-    </div>
-
     <div class="canvas">
-        <div class="layer-tabs" id="layer-tabs">
-            <div class="tab active" onclick="changeLayer(0)">Layer 0</div>
-            <div class="tab" onclick="changeLayer(1)">Layer 1</div>
-            <div class="tab" onclick="changeLayer(2)">Layer 2</div>
-            <div class="tab" onclick="changeLayer(3)">Layer 3</div>
+        <div style="margin-bottom: 20px; display: flex; gap: 5px;">
+            <button class="btn btn-layer active" onclick="setLayer(0)">L0</button>
+            <button class="btn btn-layer" onclick="setLayer(1)">L1</button>
+            <button class="btn btn-layer" onclick="setLayer(2)">L2</button>
+            <button class="btn btn-layer" onclick="setLayer(3)">L3</button>
         </div>
-        
-        <div class="grid-container" id="key-grid">
-            </div>
-
-        <div style="margin-top: 25px; width: 100%; max-width: 400px; display: flex; gap: 10px;">
-            <div class="key-node" style="flex:1; aspect-ratio: auto; height: 60px;" id="enc-cw">
-                <span class="key-id">ENC CW</span><span class="key-val">PgUp</span>
-            </div>
-            <div class="key-node" style="flex:1; aspect-ratio: auto; height: 60px;" id="enc-ccw">
-                <span class="key-id">ENC CCW</span><span class="key-val">PgDn</span>
-            </div>
-        </div>
+        <div class="grid" id="key-grid"></div>
+        <div id="status-msg" style="margin-top: 20px; font-size: 12px; color: #888;">기기를 연결해주세요.</div>
     </div>
 
     <div class="inspector">
-        <h3 id="edit-title" style="margin-top:0">Key Edit (K1)</h3>
-        
+        <h3 id="edit-label">Key K1</h3>
         <div class="form-group">
             <label>Type</label>
             <select id="type-select">
-                <option value="1">단일 키</option>
-                <option value="2">조합 키 (Modifier)</option>
-                <option value="3">매크로 (Text)</option>
-                <option value="4">미디어 키</option>
+                <option value="1">Normal Key</option>
+                <option value="2">Modifier Combo</option>
+                <option value="3">Macro (Text)</option>
+                <option value="4">Media Key</option>
             </select>
         </div>
-
-        <div id="key-select-area" class="form-group">
-            <label>Key Select</label>
-            <select id="primary-key-select"></select>
+        <div id="val-area" class="form-group">
+            <label>Keycode (Hex)</label>
+            <input type="text" id="val-input" placeholder="0x04">
         </div>
-
-        <div id="macro-area" class="form-group" style="display:none">
-            <label>Macro String</label>
-            <input type="text" id="macro-input" placeholder="Enter text...">
-        </div>
-
-        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn" id="apply-btn" style="width: 100%;">기기에 적용</button>
-            <button class="btn btn-outline" id="save-file-btn">파일로 저장</button>
-        </div>
+        <button id="apply-btn" class="btn" style="width: 100%; margin-top: 10px;">저장 (Apply)</button>
+        <button id="fetch-btn" class="btn" style="width: 100%; background:#555;">기기값 읽어오기</button>
     </div>
 </main>
 
 <script>
-    // --- State & Logic (기존 로직 기반 최적화) ---
+    // --- 통신 관련 변수 ---
+    let port, reader, writer;
+    let rxBuffer = "";
     let state = {
         currentLayer: 0,
         selectedIndex: 0,
-        layers: Array.from({ length: 4 }, () => Array.from({ length: 11 }, () => ({ type: 1, key1: 0x04, key2: 0, macro: "" })))
+        layers: Array.from({ length: 4 }, () => Array.from({ length: 11 }, () => ({ type: 1, key1: 0, key2: 0, macro: "" })))
     };
 
-    // DOM Elements
-    const grid = document.getElementById('key-grid');
-    const typeSelect = document.getElementById('type-select');
-    const keyArea = document.getElementById('key-select-area');
-    const macroArea = document.getElementById('macro-area');
-    const primarySelect = document.getElementById('primary-key-select');
-
-    // 초기화
-    function init() {
-        renderGrid();
-        renderKeyOptions();
-        
-        // 타입 변경 이벤트
-        typeSelect.addEventListener('change', (e) => {
-            const val = e.target.value;
-            macroArea.style.display = val === '3' ? 'flex' : 'none';
-            keyArea.style.display = val === '3' ? 'none' : 'flex';
-        });
-    }
-
-    function renderGrid() {
+    // --- UI 초기화 ---
+    function initGrid() {
+        const grid = document.getElementById('key-grid');
         grid.innerHTML = '';
         for (let i = 0; i < 9; i++) {
-            const key = state.layers[state.currentLayer][i];
             const node = document.createElement('div');
             node.className = `key-node ${state.selectedIndex === i ? 'active' : ''}`;
-            node.innerHTML = `<span class="key-id">K${i+1}</span><span class="key-val">${key.macro || 'Key'}</span>`;
-            node.onclick = () => {
-                state.selectedIndex = i;
-                document.getElementById('edit-title').innerText = `Key Edit (K${i+1})`;
-                renderGrid();
-            };
+            node.innerHTML = `<small>K${i+1}</small><strong>${state.layers[state.currentLayer][i].type === 3 ? 'M' : '0x' + state.layers[state.currentLayer][i].key1.toString(16)}</strong>`;
+            node.onclick = () => { state.selectedIndex = i; updateUI(); };
             grid.appendChild(node);
         }
     }
 
-    function renderKeyOptions() {
-        // 기존 KEY_LIST 데이터를 기반으로 select 채우기 (샘플)
-        const keys = [{label:'A', code:0x04}, {label:'Enter', code:0x28}, {label:'Esc', code:0x29}];
-        primarySelect.innerHTML = keys.map(k => `<option value="${k.code}">${k.label}</option>`).join('');
+    function updateUI() {
+        document.getElementById('edit-label').innerText = `Key K${state.selectedIndex + 1}`;
+        const currentKey = state.layers[state.currentLayer][state.selectedIndex];
+        document.getElementById('type-select').value = currentKey.type;
+        document.getElementById('val-input').value = currentKey.type === 3 ? currentKey.macro : '0x' + currentKey.key1.toString(16);
+        initGrid();
     }
 
-    function changeLayer(idx) {
-        state.currentLayer = idx;
-        document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
-        renderGrid();
+    function setLayer(l) {
+        state.currentLayer = l;
+        document.querySelectorAll('.btn-layer').forEach((b, i) => b.classList.toggle('active', i === l));
+        updateUI();
     }
 
-    init();
+    // --- Web Serial 핵심 로직 ---
+    async function connect() {
+        try {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 115200 });
+            writer = port.writable.getWriter();
+            document.getElementById('connect-btn').disabled = true;
+            document.getElementById('disconnect-btn').disabled = false;
+            document.getElementById('status-dot').style.color = '#4f8cff';
+            readLoop();
+            msg("연결되었습니다.");
+        } catch (e) { console.error(e); msg("연결 실패: " + e.message); }
+    }
 
-    // Web Serial 로직은 기존 코드의 connect/readLoop 함수를 그대로 붙여넣으시면 됩니다.
-    // UI 요소들의 ID만 일치시켜주세요. (connect-btn, disconnect-btn 등)
+    async function readLoop() {
+        const decoder = new TextDecoder();
+        while (port.readable) {
+            const reader = port.readable.getReader();
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    rxBuffer += decoder.decode(value);
+                    if (rxBuffer.includes('\n')) {
+                        console.log("RX:", rxBuffer.trim());
+                        // 여기서 JSON 파싱 및 state 업데이트 로직 추가 가능
+                        rxBuffer = "";
+                    }
+                }
+            } catch (e) { break; } finally { reader.releaseLock(); }
+        }
+    }
+
+    async function sendData() {
+        if (!writer) return alert("기기를 먼저 연결하세요!");
+        // 현재 로컬 state를 기기로 전송 (JSON 형식)
+        const data = JSON.stringify({ layers: state.layers.map(l => ({keys: l})) });
+        const encoder = new TextEncoder();
+        await writer.write(encoder.encode(data + "\n"));
+        msg("데이터 전송 완료!");
+    }
+
+    function msg(t) { document.getElementById('status-msg').innerText = t; }
+
+    // 이벤트 리스너
+    document.getElementById('connect-btn').onclick = connect;
+    document.getElementById('apply-btn').onclick = sendData;
+    document.getElementById('type-select').onchange = (e) => {
+        state.layers[state.currentLayer][state.selectedIndex].type = parseInt(e.target.value);
+        updateUI();
+    };
+    
+    // 초기 렌더링
+    updateUI();
 </script>
 </body>
 </html>
