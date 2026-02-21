@@ -154,160 +154,320 @@
       padding: 10px 14px; 
       font-size: 12px; 
       max-width: 320px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-    }
-    .status-box .title { color: var(--muted); margin-bottom: 4px; }
-    .status-box .msg { color: var(--text); font-weight: 500; }
-    .status-box .msg.ok { color: var(--ok); }
-    .status-box .msg.err { color: var(--err); }
-    .status-box .msg.warn { color: var(--warn); }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <div class="row" style="align-items: baseline; gap: 10px;">
-        <h1 style="margin-bottom:0;">MacroKeypad Web Serial Config</h1>
-        <span class="pill" id="fwVersionLabel">v—</span>
-        <button id="fwRefreshBtn" class="secondary mini-btn">버전 새로고침</button>
-      </div>
-      <div class="subtitle">by 3dnote</div>
-      <div class="row">
-        <button id="connectBtn">기기 연결</button>
-        <button id="disconnectBtn" class="secondary" disabled>연결 끊기</button>
-        <span id="status" class="status">미연결</span>
-        <span class="spacer"></span>
-        <button id="sendBtn" disabled>기기에 적용</button>
-        <button id="resetBtn" class="secondary">기본값으로 초기화</button>
-        <button id="saveBtn" class="secondary">파일로 저장</button>
-        <button id="loadBtn" class="secondary">파일에서 불러오기</button>
-        <button id="fetchBtn" class="secondary" disabled>기기 설정 불러오기</button>
-        <input id="fileInput" type="file" accept="application/json" style="display:none" />
-      </div>
-      <div class="status" id="lastResp" style="margin-top:8px;"></div>
-    </div>
-
-    <!-- 간단한 상태 표시 (2-3줄) -->
-    <div class="status-box" id="statusBox" style="display:none;">
-      <div class="title">상태</div>
-      <div class="msg" id="statusMsg">대기 중</div>
-    </div>
-
-    <div class="layout">
-      <div class="card">
-        <h2>키값 리스트 (Drag & Drop)</h2>
-        <div class="field">
-          <input id="keySearch" placeholder="검색: 예) A, F1, PgUp" />
+      <!-- Mobile UI Start -->
+      <div class="mobile-header frosted">
+        <div class="menu-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28"><rect y="4" width="24" height="2" rx="1"/><rect y="11" width="24" height="2" rx="1"/><rect y="18" width="24" height="2" rx="1"/></svg>
         </div>
-        <div class="key-list" id="keyList"></div>
-        <p class="hint" style="margin-top:10px;">키 리스트의 항목을 드래그해서 원하는 키칸/엔코더에 드롭하세요.</p>
+        <div class="connect-group">
+          <svg class="connect-svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" stroke="#4f8cff" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="6" stroke="#4f8cff" stroke-width="2" fill="none"/></svg>
+          <span class="connect-label">Connect</span>
+        </div>
+        <div class="settings-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7zm7.94-2.5a1 1 0 0 0 .06-1.32l-1.43-1.43a7.07 7.07 0 0 0 0-2.32l1.43-1.43a1 1 0 0 0-.06-1.32l-2.12-2.12a1 1 0 0 0-1.32-.06l-1.43 1.43a7.07 7.07 0 0 0-2.32 0l-1.43-1.43a1 1 0 0 0-1.32.06l-2.12 2.12a1 1 0 0 0-.06 1.32l1.43 1.43a7.07 7.07 0 0 0 0 2.32l-1.43 1.43a1 1 0 0 0 .06 1.32l2.12 2.12a1 1 0 0 0 1.32.06l1.43-1.43a7.07 7.07 0 0 0 2.32 0l1.43 1.43a1 1 0 0 0 1.32-.06l2.12-2.12z" fill="#4f8cff"/></svg>
+        </div>
       </div>
-
-      <div class="card">
-        <div class="row" style="justify-content: space-between;">
-          <h2>키배열 / 레이어</h2>
-          <div class="layer-tabs" id="layerTabs"></div>
-        </div>
-        <div> </div>
-
-        <div class="key-grid" id="keyGrid"></div>
-        <div class="encoder-row" id="encoderRow"></div>
+      <div class="layer-chips">
+        <button class="chip active">Layer 0</button>
+        <button class="chip">Layer 1</button>
+        <button class="chip">Layer 2</button>
+        <button class="chip">Layer 3</button>
       </div>
-
-      <div class="card">
-        <h2>키 편집</h2>
-        <div class="editor" id="editor">
-          <div class="row" style="justify-content: space-between; margin-bottom: 6px;">
-            <strong id="editorTitle">선택된 키</strong>
-            <span class="pill" id="editorIndex">K0</span>
-          </div>
-
-          <div class="field">
-            <label>타입</label>
-            <select id="typeSelect">
-              <option value="0">없음</option>
-              <option value="1">단일키</option>
-              <option value="2">조합키</option>
-              <option value="3">매크로</option>
-              <option value="4">미디어키</option>
-            </select>
-          </div>
-
-          <div class="field" id="singleKeyField">
-            <label>키</label>
-            <select id="singleKeySelect"></select>
-          </div>
-
-          <div class="field" id="mediaKeyField">
-            <label>미디어 키</label>
-            <select id="mediaKeySelect"></select>
-          </div>
-
-          <div id="comboFields">
-            <div class="field">
-              <label>Modifier</label>
-              <div class="mod-grid" id="modGrid"></div>
-            </div>
-            <div class="field">
-              <label>키</label>
-              <select id="comboKeySelect"></select>
-            </div>
-          </div>
-
-          <div class="field" id="macroField">
-            <label>매크로 문자열</label>
-            <textarea id="macroInput" placeholder="예: hello world"></textarea>
-          </div>
-
-          <div class="row">
-            <button id="applyBtn">편집 적용</button>
-            <button id="clearBtn" class="secondary">비우기</button>
-          </div>
+      <div class="keypad-center">
+        <div class="keypad-grid frosted">
+          <div class="key-btn" id="key-0">K1: ESC</div>
+          <div class="key-btn" id="key-1">K2: L-CTRL+C</div>
+          <div class="key-btn" id="key-2">K3: L-CTRL+V</div>
+          <div class="key-btn" id="key-3">K4: TAB</div>
+          <div class="key-btn" id="key-4">K5: HOME</div>
+          <div class="key-btn" id="key-5">K6: END</div>
+          <div class="key-btn" id="key-6">K7: PGUP</div>
+          <div class="key-btn" id="key-7">88: PGDN</div>
+          <div class="key-btn" id="key-8">89: ENTER</div>
         </div>
-
-        <h2 style="margin-top:20px;">키 테스트</h2>
-        <input id="keyTest" placeholder="여기에 포커스 후 키패드를 눌러 테스트" />
-
-        <h2 style="margin-top:20px;">부저</h2>
-        <div class="field">
-          <label>볼륨</label>
-          <div class="slider-row">
-            <input id="buzzerVolume" type="range" min="0" max="100" step="1" />
-            <span id="buzzerVolumeLabel" class="pill">0%</span>
-          </div>
+        <div class="encoder-group">
+          <div class="encoder-circle"></div>
+          <span class="encoder-label">ENC: VOL+</span>
         </div>
-        <div class="field">
-          <label class="pill" style="width: fit-content;">
-            <input id="buzzerMute" type="checkbox" style="margin: 0 6px 0 0;" />
-            Mute
+      </div>
+      <div class="bottom-sheet frosted">
+        <div class="sheet-bar"></div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99c.41.41 1.09.41 1.5 0s.41-1.09 0-1.5l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="#4f8cff"/></svg>
+          <input type="text" placeholder="Search Key..." />
+        </div>
+        <div class="slider-label">Buzzer Volume</div>
+        <div class="slider-container">
+          <input type="range" min="0" max="100" value="70" class="slider" id="volume-slider" />
+          <span class="slider-value" id="slider-value">70%</span>
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">RGB Lighting On
+            <input type="checkbox" checked class="toggle-switch" />
+          </label>
+          <label class="toggle-label">Macro Record Mode
+            <input type="checkbox" class="toggle-switch" />
           </label>
         </div>
-        <div class="row">
-          <button id="buzzerTestBtn" class="secondary">부저 테스트</button>
-        </div>
-
-        <h2 style="margin-top:20px;">JSON 미리보기</h2>
-        <textarea class="json-preview" id="jsonPreview" readonly></textarea>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>펌웨어 업로드 (Web USB)</h2>
-      <div class="firmware-actions">
-        <esp-web-install-button id="installBtn" manifest="manifest.json"></esp-web-install-button>
-      </div>
-      <div class="firmware-meta">
-        <span class="pill" id="manifestVersionLabel">manifest v—</span>
-        <button id="manifestRefreshBtn" class="secondary mini-btn">manifest 새로고침</button>
-        <span id="manifestUrlLabel" class="mono"></span>
-      </div>
-      <div class="firmware-note">실수 방지를 위해 페이지 하단에 배치했습니다. Chrome/Edge에서 HTTPS로 접속해야 하며, USB 연결 후 권한을 승인해야 합니다.</div>
-    </div>
-  </div>
-
-  <script type="module" src="https://unpkg.com/esp-web-tools@9/dist/web/install-button.js"></script>
-  <script>
+      <!-- Mobile UI End -->
+      <style>
+        body {
+          background: #181a20;
+          color: #eaf6ff;
+          font-family: 'Inter', system-ui, sans-serif;
+          margin: 0;
+          min-height: 100vh;
+          overflow: hidden;
+        }
+        .frosted {
+          background: rgba(30, 34, 50, 0.7);
+          backdrop-filter: blur(16px);
+          border-radius: 24px;
+          box-shadow: 0 8px 32px 0 rgba(0,0,0,0.25);
+        }
+        .mobile-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 18px 16px 8px 16px;
+          position: relative;
+          background: rgba(30, 34, 50, 0.7);
+          border-bottom-left-radius: 24px;
+          border-bottom-right-radius: 24px;
+          box-shadow: 0 2px 16px 0 rgba(44,130,255,0.08);
+        }
+        .menu-icon, .settings-icon {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .connect-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .connect-label {
+          font-size: 18px;
+          font-weight: 700;
+          color: #4f8cff;
+        }
+        .layer-chips {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          margin: 18px 0 8px 0;
+        }
+        .chip {
+          padding: 8px 18px;
+          border-radius: 18px;
+          background: rgba(44, 130, 255, 0.12);
+          color: #4f8cff;
+          font-weight: 700;
+          font-size: 16px;
+          cursor: pointer;
+          border: none;
+          transition: background 0.2s, color 0.2s;
+        }
+        .chip.active {
+          background: #4f8cff;
+          color: #fff;
+          box-shadow: 0 0 12px #4f8cff;
+        }
+        .keypad-center {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 44vh;
+        }
+        .keypad-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          grid-template-rows: repeat(3, 1fr);
+          gap: 18px;
+          width: 320px;
+          height: 320px;
+          background: rgba(30, 34, 50, 0.5);
+          border-radius: 32px;
+          box-shadow: 0 4px 32px 0 rgba(44,130,255,0.08);
+          padding: 18px;
+        }
+        .key-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          font-weight: 700;
+          background: rgba(44,130,255,0.10);
+          border-radius: 18px;
+          box-shadow: 0 0 16px 0 rgba(44,130,255,0.12);
+          color: #eaf6ff;
+          cursor: pointer;
+          transition: box-shadow 0.2s, background 0.2s;
+          height: 70px;
+          width: 70px;
+          user-select: none;
+        }
+        .key-btn.active {
+          background: #4f8cff;
+          color: #fff;
+          box-shadow: 0 0 32px 8px #4f8cff;
+        }
+        .encoder-group {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 18px;
+        }
+        .encoder-circle {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: rgba(44,130,255,0.10);
+          box-shadow: 0 0 8px #4f8cff;
+        }
+        .encoder-label {
+          color: #eaf6ff;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        .bottom-sheet {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 32vh;
+          min-height: 220px;
+          max-height: 340px;
+          background: rgba(30, 34, 50, 0.85);
+          backdrop-filter: blur(24px);
+          border-top-left-radius: 32px;
+          border-top-right-radius: 32px;
+          box-shadow: 0 -8px 32px 0 rgba(44,130,255,0.12);
+          display: flex;
+          flex-direction: column;
+          padding: 24px 20px 16px 20px;
+          z-index: 10;
+        }
+        .sheet-bar {
+          width: 60px;
+          height: 6px;
+          background: rgba(44,130,255,0.18);
+          border-radius: 3px;
+          margin: 0 auto 18px auto;
+        }
+        .search-bar {
+          display: flex;
+          align-items: center;
+          background: rgba(44,130,255,0.10);
+          border-radius: 16px;
+          padding: 8px 16px;
+          margin-bottom: 18px;
+        }
+        .search-bar input {
+          background: transparent;
+          border: none;
+          outline: none;
+          color: #eaf6ff;
+          font-size: 18px;
+          width: 100%;
+          font-family: 'Inter', sans-serif;
+        }
+        .search-bar svg {
+          fill: #4f8cff;
+          width: 22px;
+          height: 22px;
+          margin-right: 10px;
+        }
+        .slider-label {
+          font-size: 16px;
+          color: #eaf6ff;
+          margin-bottom: 8px;
+          font-weight: 600;
+        }
+        .slider-container {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .slider {
+          width: 100%;
+          accent-color: #4f8cff;
+        }
+        .slider-value {
+          font-size: 16px;
+          color: #4f8cff;
+          font-weight: 700;
+          min-width: 40px;
+          text-align: right;
+        }
+        .toggle-row {
+          display: flex;
+          gap: 18px;
+          margin-top: 18px;
+        }
+        .toggle-label {
+          font-size: 15px;
+          color: #eaf6ff;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .toggle-switch {
+          accent-color: #4f8cff;
+          width: 22px;
+          height: 22px;
+        }
+        @media (max-width: 480px) {
+          .keypad-grid {
+            width: 98vw;
+            height: 98vw;
+            padding: 8vw;
+            gap: 4vw;
+          }
+          .key-btn {
+            width: 22vw;
+            height: 22vw;
+            font-size: 5vw;
+          }
+        }
+      </style>
+      <script>
+        // Layer chip selection
+        document.querySelectorAll('.chip').forEach((chip, idx) => {
+          chip.addEventListener('click', () => {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+          });
+        });
+        // Key glow effect
+        document.querySelectorAll('.key-btn').forEach((key) => {
+          key.addEventListener('touchstart', () => {
+            key.classList.add('active');
+          });
+          key.addEventListener('touchend', () => {
+            key.classList.remove('active');
+          });
+          key.addEventListener('mousedown', () => {
+            key.classList.add('active');
+          });
+          key.addEventListener('mouseup', () => {
+            key.classList.remove('active');
+          });
+          key.addEventListener('mouseleave', () => {
+            key.classList.remove('active');
+          });
+        });
+        // Volume slider
+        const slider = document.getElementById('volume-slider');
+        const sliderValue = document.getElementById('slider-value');
+        slider.addEventListener('input', () => {
+          sliderValue.textContent = slider.value + '%';
+        });
+      </script>
     const connectBtn = document.getElementById('connectBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
     const sendBtn = document.getElementById('sendBtn');
