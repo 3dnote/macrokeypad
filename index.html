@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>매크로 키패드 설정 도구</title>
+    <title>매크로패드 프로 설정러</title>
     <style>
         :root {
             --bg-dark: #0f111a;
             --panel-bg: rgba(30, 34, 51, 0.7);
             --accent: #4f8cff;
+            --danger: #ff4f4f;
             --text: #e0e6ed;
             --border: rgba(255, 255, 255, 0.1);
             --frosted: blur(10px);
@@ -20,136 +21,168 @@
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
-        /* 헤더 */
+        /* 헤더 영역 */
         header {
-            padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
-            background: rgba(15, 17, 26, 0.8); backdrop-filter: var(--frosted); border-bottom: 1px solid var(--border);
-            z-index: 10;
+            padding: 12px 25px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(15, 17, 26, 0.9); backdrop-filter: var(--frosted); border-bottom: 1px solid var(--border);
+            z-index: 100;
         }
 
+        .logo { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+        .nav-group { display: flex; gap: 8px; }
+
+        /* 공통 버튼 스타일 */
         .btn {
-            background: var(--accent); color: white; border: none; padding: 8px 18px;
-            border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s;
+            background: var(--accent); color: white; border: none; padding: 8px 14px;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;
         }
+        .btn:hover { filter: brightness(1.2); }
         .btn:disabled { background: #444; opacity: 0.5; cursor: not-allowed; }
-        .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: rgba(255,255,255,0.05); border-color: var(--accent); }
+        .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: white; }
 
         /* 메인 레이아웃 */
-        main { display: flex; flex: 1; overflow: hidden; position: relative; }
+        main { display: flex; flex: 1; overflow: hidden; }
 
-        /* 키패드 영역 */
+        /* 키패드 가상 화면 */
         .canvas {
-            flex: 1; padding: 40px; display: flex; flex-direction: column; align-items: center;
+            flex: 1; padding: 30px; display: flex; flex-direction: column; align-items: center;
             overflow-y: auto; background: radial-gradient(circle at center, #1e2233 0%, #0f111a 100%);
         }
 
         .layer-tabs {
-            display: flex; gap: 8px; margin-bottom: 30px; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 12px;
+            display: flex; gap: 6px; margin-bottom: 25px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 10px;
         }
         .tab {
-            padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.3s; color: #888;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #888; transition: 0.2s;
         }
-        .tab.active { background: var(--accent); color: white; box-shadow: 0 4px 15px rgba(79, 140, 255, 0.3); }
+        .tab.active { background: var(--accent); color: white; }
 
         .grid-container {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
-            max-width: 360px; width: 100%;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+            max-width: 340px; width: 100%;
         }
         .key-node {
             aspect-ratio: 1/1; background: var(--panel-bg); border: 2px solid var(--border);
-            border-radius: 18px; display: flex; flex-direction: column; justify-content: center;
-            align-items: center; cursor: pointer; transition: 0.2s; text-align: center;
+            border-radius: 15px; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; cursor: pointer; transition: 0.2s;
         }
-        .key-node:hover { border-color: var(--accent); transform: translateY(-3px); }
-        .key-node.active { border-color: var(--accent); background: rgba(79,140,255,0.1); box-shadow: 0 0 20px rgba(79,140,255,0.15); }
-        .key-id { font-size: 11px; opacity: 0.4; margin-bottom: 4px; }
-        .key-val { font-size: 14px; font-weight: bold; color: var(--accent); }
+        .key-node.active { border-color: var(--accent); background: rgba(79,140,255,0.15); transform: scale(1.02); }
+        .key-val { font-size: 14px; font-weight: bold; margin-top: 4px; color: var(--accent); }
 
-        /* 우측 설정창 (인스펙터) */
+        /* 우측 인스펙터 */
         .inspector {
-            width: 320px; background: rgba(22, 25, 37, 0.95); backdrop-filter: var(--frosted);
-            border-left: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; gap: 20px;
-            transition: transform 0.3s ease;
+            width: 320px; background: rgba(22, 25, 37, 0.98); backdrop-filter: var(--frosted);
+            border-left: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; 
+            gap: 20px; overflow-y: auto;
         }
 
-        /* 모바일 반응형 */
-        @media (max-width: 900px) {
-            main { flex-direction: column; }
-            .inspector {
-                position: fixed; bottom: 0; left: 0; width: 100%; height: 45vh;
-                border-left: none; border-top: 1px solid var(--border);
-                border-radius: 30px 30px 0 0; z-index: 100; padding: 25px;
-                box-sizing: border-box;
-            }
-            .canvas { padding: 20px; padding-bottom: 50vh; }
-        }
-
-        /* 폼 요소 */
-        .form-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 12px; color: #888; letter-spacing: 0.5px; }
+        .section-title { font-size: 12px; color: var(--accent); font-weight: bold; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 10px; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; }
+        .form-group label { font-size: 12px; color: #888; }
         select, input {
             background: #0b0d12; border: 1px solid var(--border); color: white;
-            padding: 12px; border-radius: 8px; outline: none; font-size: 14px;
+            padding: 10px; border-radius: 6px; outline: none; font-size: 13px;
+        }
+
+        /* 부저/업데이트 영역 스타일 */
+        .control-card {
+            background: rgba(0,0,0,0.2); border-radius: 10px; padding: 15px; border: 1px solid var(--border);
+        }
+
+        @media (max-width: 900px) {
+            main { flex-direction: column; }
+            .inspector { width: 100%; height: 50vh; border-left: none; border-top: 1px solid var(--border); }
+            .canvas { padding-bottom: 55vh; }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: 800; letter-spacing: -0.5px; font-size: 20px;">
-        매크로<span style="color:var(--accent)">패드</span> 
-        <span id="conn-status" style="font-size: 10px; margin-left: 8px; vertical-align: middle; color: #ff4f4f;">● 연결 안 됨</span>
-    </div>
-    <div style="display: flex; gap: 10px;">
-        <button id="connect-btn" class="btn">기기 연결하기</button>
-        <button id="disconnect-btn" class="btn btn-outline" style="display:none">연결 해제</button>
+    <div class="logo">매크로<span style="color:var(--accent)">패드</span> PRO</div>
+    <div class="nav-group">
+        <button id="load-btn" class="btn btn-outline">파일 불러오기</button>
+        <button id="save-file-btn" class="btn btn-outline">파일로 저장</button>
+        <div style="width: 1px; background: var(--border); margin: 0 5px;"></div>
+        <button id="connect-btn" class="btn">기기 연결</button>
+        <button id="disconnect-btn" class="btn btn-danger" style="display:none">연결 해제</button>
     </div>
 </header>
 
 <main>
     <div class="canvas">
-        <div class="layer-tabs" id="layer-tabs">
+        <div class="layer-tabs">
             <div class="tab active" onclick="changeLayer(0)">레이어 0</div>
             <div class="tab" onclick="changeLayer(1)">레이어 1</div>
             <div class="tab" onclick="changeLayer(2)">레이어 2</div>
             <div class="tab" onclick="changeLayer(3)">레이어 3</div>
         </div>
         
-        <div class="grid-container" id="key-grid">
-            </div>
-
-        <div id="status-text" style="margin-top: 20px; font-size: 12px; color: #555;">상단의 '기기 연결하기' 버튼을 눌러주세요.</div>
+        <div class="grid-container" id="key-grid"></div>
+        
+        <div id="status-bar" style="margin-top: 25px; font-size: 12px; color: #666;">
+            현재 상태: <span id="status-text">기기 대기 중...</span>
+        </div>
     </div>
 
     <div class="inspector">
-        <h3 id="edit-title" style="margin:0; font-size: 18px;">키 설정 (K1)</h3>
-        
-        <div class="form-group">
-            <label>동작 유형</label>
-            <select id="type-select">
-                <option value="1">일반 키 (단축키)</option>
-                <option value="2">조합 키 (Ctrl/Alt 등)</option>
-                <option value="3">매크로 (문구 입력)</option>
-                <option value="4">미디어 제어</option>
-            </select>
+        <div>
+            <div class="section-title">키 동작 설정</div>
+            <h3 id="edit-title" style="margin: 0 0 15px 0; font-size: 16px;">선택된 키: K1</h3>
+            
+            <div class="form-group">
+                <label>동작 방식</label>
+                <select id="type-select">
+                    <option value="1">일반 단축키</option>
+                    <option value="2">조합키 (Modifier)</option>
+                    <option value="3">매크로 문구</option>
+                    <option value="4">미디어 컨트롤</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="val-label">입력 값</label>
+                <input type="text" id="val-input" placeholder="키코드 또는 텍스트">
+            </div>
+            
+            <button id="apply-btn" class="btn" style="width: 100%; padding: 12px;">현재 키 적용하기</button>
         </div>
 
-        <div id="val-area" class="form-group">
-            <label id="val-label">키 값 또는 문구</label>
-            <input type="text" id="val-input" placeholder="예: 0x04 또는 안녕">
+        <div class="control-card">
+            <div class="section-title">기기 시스템 설정</div>
+            
+            <div class="form-group">
+                <label>부저 알림음 볼륨</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="range" id="buzzer-vol" min="0" max="100" style="flex:1">
+                    <span id="vol-display" style="font-size: 12px; width: 30px;">50%</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button id="fetch-btn" class="btn btn-outline" style="flex:1">설정 읽기</button>
+                <button id="buzzer-test" class="btn btn-outline" style="flex:1">소리 테스트</button>
+            </div>
         </div>
 
-        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn" id="save-btn" style="width: 100%; padding: 15px;">기기에 저장하기</button>
-            <button class="btn btn-outline" id="fetch-btn" style="width: 100%;">기기 설정 읽어오기</button>
+        <div style="margin-top: auto;">
+            <button id="fw-update-btn" class="btn btn-danger" style="width: 100%; opacity: 0.8;">펌웨어 업그레이드</button>
+            <p style="font-size: 10px; color: #555; text-align: center; margin-top: 8px;">
+                최신 버전: v1.2.0 / 현재 기기: <span id="cur-fw">v1.1.0</span>
+            </p>
         </div>
     </div>
 </main>
 
+<input type="file" id="file-input" style="display:none" accept=".json">
+
 <script>
-    // --- 데이터 상태 ---
+    // --- 핵심 데이터 상태 ---
     let port, writer;
-    let rxBuffer = "";
     let state = {
         currentLayer: 0,
         selectedIndex: 0,
@@ -158,17 +191,17 @@
         )
     };
 
-    // --- UI 렌더링 ---
+    // --- 초기 렌더링 ---
     function renderGrid() {
         const grid = document.getElementById('key-grid');
         grid.innerHTML = '';
         for (let i = 0; i < 9; i++) {
-            const keyData = state.layers[state.currentLayer][i];
+            const key = state.layers[state.currentLayer][i];
             const node = document.createElement('div');
             node.className = `key-node ${state.selectedIndex === i ? 'active' : ''}`;
             
-            let displayVal = keyData.type === 3 ? "매크로" : "0x" + keyData.key1.toString(16).toUpperCase();
-            node.innerHTML = `<span class="key-id">K${i+1}</span><span class="key-val">${displayVal}</span>`;
+            let label = key.type === 3 ? "TXT" : "0x" + key.key1.toString(16).toUpperCase();
+            node.innerHTML = `<span style="font-size:10px; opacity:0.4">K${i+1}</span><span class="key-val">${label}</span>`;
             
             node.onclick = () => {
                 state.selectedIndex = i;
@@ -181,7 +214,7 @@
 
     function updateInspector() {
         const key = state.layers[state.currentLayer][state.selectedIndex];
-        document.getElementById('edit-title').innerText = `키 설정 (K${state.selectedIndex + 1})`;
+        document.getElementById('edit-title').innerText = `선택된 키: K${state.selectedIndex + 1}`;
         document.getElementById('type-select').value = key.type;
         document.getElementById('val-input').value = key.type === 3 ? key.macro : "0x" + key.key1.toString(16);
     }
@@ -192,76 +225,68 @@
         renderGrid();
     }
 
-    // --- 시리얼 통신 ---
-    async function connect() {
+    // --- 버튼 액션 함수들 ---
+
+    // 1. 기기 연결/해제
+    async function handleConnect() {
         try {
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: 115200 });
             writer = port.writable.getWriter();
             
-            document.getElementById('conn-status').innerText = "● 연결됨";
-            document.getElementById('conn-status').style.color = "#4f8cff";
             document.getElementById('connect-btn').style.display = "none";
             document.getElementById('disconnect-btn').style.display = "block";
-            
-            readLoop();
-            document.getElementById('status-text').innerText = "기기와 성공적으로 연결되었습니다.";
+            document.getElementById('status-text').innerText = "기기가 연결되었습니다.";
+            document.getElementById('status-text').style.color = "#4f8cff";
         } catch (e) {
-            document.getElementById('status-text').innerText = "연결 오류: " + e.message;
+            alert("연결에 실패했습니다: " + e.message);
         }
     }
 
-    async function readLoop() {
-        const decoder = new TextDecoder();
-        while (port.readable) {
-            const reader = port.readable.getReader();
-            try {
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    rxBuffer += decoder.decode(value);
-                    if (rxBuffer.includes('\n')) {
-                        console.log("기기로부터 수신:", rxBuffer.trim());
-                        rxBuffer = "";
-                    }
-                }
-            } catch (e) { break; } finally { reader.releaseLock(); }
-        }
+    // 2. 키맵 파일 저장
+    function saveKeymapFile() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "keymap_config.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     }
 
-    async function saveData() {
-        if (!writer) return alert("먼저 기기를 연결해주세요.");
-        
-        const key = state.layers[state.currentLayer][state.selectedIndex];
-        const inputVal = document.getElementById('val-input').value;
-        
-        if (key.type === 3) key.macro = inputVal;
-        else key.key1 = parseInt(inputVal, 16) || 0;
-
-        const jsonString = JSON.stringify({
-            cmd: "SAVE",
-            layer: state.currentLayer,
-            index: state.selectedIndex,
-            data: key
-        });
-        
-        await writer.write(new TextEncoder().encode(jsonString + "\n"));
-        document.getElementById('status-text').innerText = `K${state.selectedIndex+1} 설정이 기기로 전송되었습니다.`;
-        renderGrid();
-    }
-
-    // 이벤트 리스너
-    document.getElementById('connect-btn').onclick = connect;
-    document.getElementById('save-btn').onclick = saveData;
-    document.getElementById('type-select').onchange = (e) => {
-        state.layers[state.currentLayer][state.selectedIndex].type = parseInt(e.target.value);
-        renderGrid();
+    // 3. 파일 불러오기
+    document.getElementById('load-btn').onclick = () => document.getElementById('file-input').click();
+    document.getElementById('file-input').onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            state = JSON.parse(event.target.result);
+            renderGrid();
+            updateInspector();
+            alert("파일 설정을 불러왔습니다.");
+        };
+        reader.readAsText(file);
     };
 
-    // 초기 실행
+    // 4. 부저음 볼륨 슬라이더
+    document.getElementById('buzzer-vol').oninput = (e) => {
+        document.getElementById('vol-display').innerText = e.target.value + "%";
+    };
+
+    // 5. 펌웨어 업데이트 (모킹)
+    document.getElementById('fw-update-btn').onclick = () => {
+        if(confirm("펌웨어 업데이트를 시작하시겠습니까? 진행 중 연결을 끊지 마세요.")) {
+            alert("업데이트 서버를 확인 중입니다...");
+        }
+    };
+
+    // 초기화 버튼 할당
+    document.getElementById('connect-btn').onclick = handleConnect;
+    document.getElementById('save-file-btn').onclick = saveKeymapFile;
+    document.getElementById('disconnect-btn').onclick = () => location.reload(); // 단순 리로드로 해제 시뮬레이션
+
     renderGrid();
     updateInspector();
-
 </script>
 </body>
 </html>
