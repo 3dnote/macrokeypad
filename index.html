@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MacroKeypad Config Pro</title>
+    <title>매크로 키패드 설정 도구</title>
     <style>
         :root {
             --bg-dark: #0f111a;
@@ -15,12 +15,12 @@
         }
 
         body {
-            margin: 0; padding: 0; font-family: 'Inter', sans-serif;
+            margin: 0; padding: 0; font-family: 'Pretendard', sans-serif;
             background-color: var(--bg-dark); color: var(--text);
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
-        /* Header */
+        /* 헤더 */
         header {
             padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
             background: rgba(15, 17, 26, 0.8); backdrop-filter: var(--frosted); border-bottom: 1px solid var(--border);
@@ -34,10 +34,10 @@
         .btn:disabled { background: #444; opacity: 0.5; cursor: not-allowed; }
         .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
 
-        /* Main Layout */
+        /* 메인 레이아웃 */
         main { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-        /* Canvas (Keypad Grid) */
+        /* 키패드 영역 */
         .canvas {
             flex: 1; padding: 40px; display: flex; flex-direction: column; align-items: center;
             overflow-y: auto; background: radial-gradient(circle at center, #1e2233 0%, #0f111a 100%);
@@ -65,14 +65,14 @@
         .key-id { font-size: 11px; opacity: 0.4; margin-bottom: 4px; }
         .key-val { font-size: 14px; font-weight: bold; color: var(--accent); }
 
-        /* Inspector (Right Panel) */
+        /* 우측 설정창 (인스펙터) */
         .inspector {
             width: 320px; background: rgba(22, 25, 37, 0.95); backdrop-filter: var(--frosted);
             border-left: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; gap: 20px;
             transition: transform 0.3s ease;
         }
 
-        /* Mobile Responsive */
+        /* 모바일 반응형 */
         @media (max-width: 900px) {
             main { flex-direction: column; }
             .inspector {
@@ -84,9 +84,9 @@
             .canvas { padding: 20px; padding-bottom: 50vh; }
         }
 
-        /* Form */
+        /* 폼 요소 */
         .form-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        label { font-size: 12px; color: #888; letter-spacing: 0.5px; }
         select, input {
             background: #0b0d12; border: 1px solid var(--border); color: white;
             padding: 12px; border-radius: 8px; outline: none; font-size: 14px;
@@ -97,57 +97,57 @@
 
 <header>
     <div style="font-weight: 800; letter-spacing: -0.5px; font-size: 20px;">
-        MACRO<span style="color:var(--accent)">PAD</span> 
-        <span id="conn-status" style="font-size: 10px; margin-left: 8px; vertical-align: middle; color: #ff4f4f;">● DISCONNECTED</span>
+        매크로<span style="color:var(--accent)">패드</span> 
+        <span id="conn-status" style="font-size: 10px; margin-left: 8px; vertical-align: middle; color: #ff4f4f;">● 연결 안 됨</span>
     </div>
     <div style="display: flex; gap: 10px;">
-        <button id="connect-btn" class="btn">Connect Device</button>
-        <button id="disconnect-btn" class="btn btn-outline" style="display:none">Disconnect</button>
+        <button id="connect-btn" class="btn">기기 연결하기</button>
+        <button id="disconnect-btn" class="btn btn-outline" style="display:none">연결 해제</button>
     </div>
 </header>
 
 <main>
     <div class="canvas">
         <div class="layer-tabs" id="layer-tabs">
-            <div class="tab active" onclick="changeLayer(0)">LAYER 0</div>
-            <div class="tab" onclick="changeLayer(1)">LAYER 1</div>
-            <div class="tab" onclick="changeLayer(2)">LAYER 2</div>
-            <div class="tab" onclick="changeLayer(3)">LAYER 3</div>
+            <div class="tab active" onclick="changeLayer(0)">레이어 0</div>
+            <div class="tab" onclick="changeLayer(1)">레이어 1</div>
+            <div class="tab" onclick="changeLayer(2)">레이어 2</div>
+            <div class="tab" onclick="changeLayer(3)">레이어 3</div>
         </div>
         
         <div class="grid-container" id="key-grid">
             </div>
 
-        <div id="status-text" style="margin-top: 20px; font-size: 12px; color: #555;">연결 버튼을 눌러 하드웨어를 선택하세요.</div>
+        <div id="status-text" style="margin-top: 20px; font-size: 12px; color: #555;">상단의 '기기 연결하기' 버튼을 눌러주세요.</div>
     </div>
 
     <div class="inspector">
-        <h3 id="edit-title" style="margin:0; font-size: 18px;">Key Setting (K1)</h3>
+        <h3 id="edit-title" style="margin:0; font-size: 18px;">키 설정 (K1)</h3>
         
         <div class="form-group">
-            <label>Action Type</label>
+            <label>동작 유형</label>
             <select id="type-select">
-                <option value="1">Normal Key</option>
-                <option value="2">Modifier Combo</option>
-                <option value="3">Macro String</option>
-                <option value="4">Media Control</option>
+                <option value="1">일반 키 (단축키)</option>
+                <option value="2">조합 키 (Ctrl/Alt 등)</option>
+                <option value="3">매크로 (문구 입력)</option>
+                <option value="4">미디어 제어</option>
             </select>
         </div>
 
         <div id="val-area" class="form-group">
-            <label id="val-label">Keycode / Text</label>
-            <input type="text" id="val-input" placeholder="e.g. 0x04 or Hello">
+            <label id="val-label">키 값 또는 문구</label>
+            <input type="text" id="val-input" placeholder="예: 0x04 또는 안녕">
         </div>
 
         <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn" id="save-btn" style="width: 100%; padding: 15px;">SAVE TO DEVICE</button>
-            <button class="btn btn-outline" id="fetch-btn" style="width: 100%;">READ FROM DEVICE</button>
+            <button class="btn" id="save-btn" style="width: 100%; padding: 15px;">기기에 저장하기</button>
+            <button class="btn btn-outline" id="fetch-btn" style="width: 100%;">기기 설정 읽어오기</button>
         </div>
     </div>
 </main>
 
 <script>
-    // --- State & Data ---
+    // --- 데이터 상태 ---
     let port, writer;
     let rxBuffer = "";
     let state = {
@@ -158,7 +158,7 @@
         )
     };
 
-    // --- UI Rendering ---
+    // --- UI 렌더링 ---
     function renderGrid() {
         const grid = document.getElementById('key-grid');
         grid.innerHTML = '';
@@ -167,7 +167,7 @@
             const node = document.createElement('div');
             node.className = `key-node ${state.selectedIndex === i ? 'active' : ''}`;
             
-            let displayVal = keyData.type === 3 ? "TXT" : "0x" + keyData.key1.toString(16).toUpperCase();
+            let displayVal = keyData.type === 3 ? "매크로" : "0x" + keyData.key1.toString(16).toUpperCase();
             node.innerHTML = `<span class="key-id">K${i+1}</span><span class="key-val">${displayVal}</span>`;
             
             node.onclick = () => {
@@ -181,7 +181,7 @@
 
     function updateInspector() {
         const key = state.layers[state.currentLayer][state.selectedIndex];
-        document.getElementById('edit-title').innerText = `Key Setting (K${state.selectedIndex + 1})`;
+        document.getElementById('edit-title').innerText = `키 설정 (K${state.selectedIndex + 1})`;
         document.getElementById('type-select').value = key.type;
         document.getElementById('val-input').value = key.type === 3 ? key.macro : "0x" + key.key1.toString(16);
     }
@@ -192,20 +192,20 @@
         renderGrid();
     }
 
-    // --- Serial Communication ---
+    // --- 시리얼 통신 ---
     async function connect() {
         try {
             port = await navigator.serial.requestPort();
             await port.open({ baudRate: 115200 });
             writer = port.writable.getWriter();
             
-            document.getElementById('conn-status').innerText = "● CONNECTED";
+            document.getElementById('conn-status').innerText = "● 연결됨";
             document.getElementById('conn-status').style.color = "#4f8cff";
             document.getElementById('connect-btn').style.display = "none";
             document.getElementById('disconnect-btn').style.display = "block";
             
             readLoop();
-            document.getElementById('status-text').innerText = "기기와 연결되었습니다. 설정을 읽어오거나 수정하세요.";
+            document.getElementById('status-text').innerText = "기기와 성공적으로 연결되었습니다.";
         } catch (e) {
             document.getElementById('status-text').innerText = "연결 오류: " + e.message;
         }
@@ -221,7 +221,7 @@
                     if (done) break;
                     rxBuffer += decoder.decode(value);
                     if (rxBuffer.includes('\n')) {
-                        console.log("From Device:", rxBuffer.trim());
+                        console.log("기기로부터 수신:", rxBuffer.trim());
                         rxBuffer = "";
                     }
                 }
@@ -232,14 +232,12 @@
     async function saveData() {
         if (!writer) return alert("먼저 기기를 연결해주세요.");
         
-        // 현재 인스펙터 값을 state에 저장
         const key = state.layers[state.currentLayer][state.selectedIndex];
         const inputVal = document.getElementById('val-input').value;
         
         if (key.type === 3) key.macro = inputVal;
         else key.key1 = parseInt(inputVal, 16) || 0;
 
-        // 기기로 전송
         const jsonString = JSON.stringify({
             cmd: "SAVE",
             layer: state.currentLayer,
@@ -248,11 +246,11 @@
         });
         
         await writer.write(new TextEncoder().encode(jsonString + "\n"));
-        document.getElementById('status-text').innerText = `K${state.selectedIndex+1} 설정이 기기에 전송되었습니다.`;
+        document.getElementById('status-text').innerText = `K${state.selectedIndex+1} 설정이 기기로 전송되었습니다.`;
         renderGrid();
     }
 
-    // Event Listeners
+    // 이벤트 리스너
     document.getElementById('connect-btn').onclick = connect;
     document.getElementById('save-btn').onclick = saveData;
     document.getElementById('type-select').onchange = (e) => {
@@ -260,7 +258,7 @@
         renderGrid();
     };
 
-    // Init
+    // 초기 실행
     renderGrid();
     updateInspector();
 
