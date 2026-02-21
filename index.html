@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MacroKeypad Configurator Pro</title>
+    <title>MacroKeypad Configurator</title>
     <style>
         :root {
             --bg: #0d1117;
             --card: #161b22;
-            --accent: #58a6ff;
-            --danger: #f85149;
+            --accent: #58a6ff; /* 파란색: 기기/동작 */
+            --success: #2ea44f; /* 녹색: 저장/적용 */
+            --warning: #dbab09; /* 황색: 불러오기/파일 */
+            --danger: #f85149; /* 빨간색: 초기화/업데이트 */
             --text: #c9d1d9;
             --border: #30363d;
         }
@@ -17,164 +19,174 @@
         body {
             margin: 0; padding: 0; font-family: 'Pretendard', sans-serif;
             background: var(--bg); color: var(--text);
-            display: flex; flex-direction: column; height: 100vh; overflow: hidden; /* 스크롤 방지 */
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
-        /* 헤더: 높이를 줄여 본문 공간 확보 */
+        /* 헤더: 메뉴 버튼 그룹화 */
         header {
             padding: 10px 20px; background: #010409;
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid var(--border);
-            height: 50px;
+            height: 60px;
         }
-        .logo-text { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-        .fw-info { font-size: 12px; opacity: 0.7; margin-left: 10px; background: #21262d; padding: 2px 8px; border-radius: 10px; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--accent); }
+        
+        .nav-group { display: flex; gap: 10px; align-items: center; }
+        .v-line { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
 
-        .btn-group { display: flex; gap: 8px; }
         .btn {
-            padding: 6px 12px; border-radius: 6px; border: none; font-size: 13px; 
-            font-weight: 600; cursor: pointer; transition: 0.2s;
+            padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            background: transparent; color: var(--text);
         }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-file { border-color: var(--warning); color: var(--warning); } /* 파일 관련 */
+        .btn-file:hover { background: var(--warning); color: #000; }
+        .btn-device { border-color: var(--accent); color: var(--accent); } /* 기기 관련 */
+        .btn-device:hover { background: var(--accent); color: white; }
+        .btn-danger { border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: white; }
 
-        /* 메인 구성: 3단 분할 또는 가로 분할 */
         main { display: flex; flex: 1; overflow: hidden; }
 
-        /* 좌측: 키 배열 (영역 확대) */
-        .keypad-section {
+        /* 좌측: 키패드 */
+        .keypad-area {
             flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: radial-gradient(circle at center, #1c212e 0%, #0d1117 100%);
             padding: 20px;
         }
-
-        .layer-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab {
-            padding: 8px 20px; border-radius: 8px; background: var(--card);
-            border: 1px solid var(--border); color: #888; cursor: pointer; font-size: 14px; font-weight: bold;
+        .layer-labels { display: flex; gap: 8px; margin-bottom: 20px; }
+        .layer-tag {
+            padding: 6px 15px; border-radius: 6px; background: var(--card);
+            border: 1px solid var(--border); font-size: 13px; cursor: pointer;
         }
-        .tab.active { border-color: var(--accent); color: var(--accent); background: rgba(88, 166, 255, 0.1); }
+        .layer-tag.active { border-color: var(--accent); color: var(--accent); font-weight: bold; }
 
         .grid-3x3 {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-            width: 100%; max-width: 420px; /* 너무 커지지 않게 제한 */
+            width: 100%; max-width: 400px;
         }
-        .key {
+        .key-unit {
             aspect-ratio: 1/1; background: var(--card); border: 2px solid var(--border);
-            border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s;
+            border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; position: relative;
         }
-        .key:hover { border-color: var(--accent); }
-        .key.active { border-color: var(--accent); background: #1f2937; box-shadow: 0 0 15px rgba(88, 166, 255, 0.2); }
-        .key-id { font-size: 11px; color: #555; margin-bottom: 5px; }
-        .key-val { font-size: 16px; font-weight: 800; color: var(--accent); text-align: center; }
+        .key-unit.active { border-color: var(--accent); box-shadow: 0 0 15px rgba(88, 166, 255, 0.2); }
+        .key-num { position: absolute; top: 8px; left: 10px; font-size: 10px; color: #555; }
+        .key-content { font-size: 14px; font-weight: 700; color: var(--text); text-align: center; }
 
-        /* 우측: 설정 패널 (폭 최적화) */
-        .side-panel {
-            width: 360px; background: #0d1117; border-left: 1px solid var(--border);
+        /* 우측: 편집 패널 */
+        .edit-panel {
+            width: 350px; background: #0d1117; border-left: 1px solid var(--border);
             padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
         }
+        .panel-section { background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border); }
+        .section-header { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 5px;}
 
-        .card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
-        .card-title { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; }
+        .edit-info { font-size: 18px; font-weight: 800; margin-bottom: 15px; }
+        .edit-info span { color: var(--accent); font-size: 14px; margin-left: 5px; }
 
-        .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-        .field label { font-size: 13px; font-weight: 600; color: #8b949e; }
-        select, input[type="text"] {
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .form-group label { font-size: 12px; color: #8b949e; }
+        select, input {
             padding: 10px; border-radius: 6px; background: #010409;
-            border: 1px solid var(--border); color: white; font-size: 14px;
+            border: 1px solid var(--border); color: white; font-size: 13px;
         }
 
-        /* 아래쪽 고정 버튼 */
-        .bottom-actions { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-        .btn-big { padding: 15px; font-size: 16px; width: 100%; border-radius: 10px; }
-
+        /* 하단 고정 버튼부 */
+        .sticky-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+        .btn-apply { background: var(--success); color: white; padding: 15px; border-radius: 8px; font-size: 15px; border: none; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo-area">
-        <span class="logo-text">MACRO<span style="color:var(--accent)">KEYPAD</span></span>
-        <span class="fw-info">v1.2.0</span>
-        <button class="btn btn-outline" style="font-size: 10px; padding: 2px 6px;" onclick="location.reload()">새로고침</button>
-    </div>
-    <div class="btn-group">
-        <button class="btn btn-outline">파일 열기</button>
-        <button class="btn btn-outline">저장</button>
-        <button class="btn btn-primary" onclick="connect()">기기 연결</button>
+    <div class="logo-text">MacroKeypad <span style="font-size:10px; vertical-align:middle; opacity:0.6">Web Serial Config</span></div>
+    
+    <div class="nav-group">
+        <button class="btn btn-file" title="PC의 JSON 파일 불러오기">파일 불러오기</button>
+        <button class="btn btn-file" title="현재 설정을 PC에 JSON으로 저장">파일로 저장</button>
+        
+        <div class="v-line"></div>
+        
+        <button class="btn btn-device" onclick="connect()">기기 연결</button>
+        <button class="btn btn-device" title="연결된 기기의 현재 매핑 읽기">기기설정 불러오기</button>
+        <button class="btn btn-danger" title="모든 설정을 공장 초기화">기본값 초기화</button>
     </div>
 </header>
 
 <main>
-    <div class="keypad-section">
-        <div class="layer-tabs">
-            <div class="tab active">LAYER 0</div>
-            <div class="tab">LAYER 1</div>
-            <div class="tab">LAYER 2</div>
-            <div class="tab">LAYER 3</div>
+    <div class="keypad-area">
+        <div class="layer-labels">
+            <div class="layer-tag active">Layer 0 (문서용)</div>
+            <div class="layer-tag">Layer 1 (동영상용)</div>
+            <div class="layer-tag">Layer 2 (코딩용)</div>
+            <div class="layer-tag">Layer 3 (기타)</div>
         </div>
-        <div class="grid-3x3" id="grid">
-            <script>
-                for(let i=1; i<=9; i++) {
-                    document.write(`
-                        <div class="key ${i==1?'active':''}" onclick="selectKey(${i})">
-                            <span class="key-id">K${i}</span>
-                            <span class="key-val">A</span>
-                        </div>
-                    `);
-                }
-            </script>
-        </div>
-        <p style="margin-top: 20px; font-size: 12px; color: #555;">수정할 키를 선택하세요.</p>
+        <div class="grid-3x3" id="main-grid">
+            </div>
     </div>
 
-    <div class="side-panel">
-        <div class="card">
-            <div class="card-title">Key Mapping</div>
-            <h3 id="key-name" style="margin: 0 0 15px 0; font-size: 18px;">편집 중: KEY 1</h3>
-            <div class="field">
-                <label>동작 유형</label>
-                <select>
-                    <option>단일키 (Single Key)</option>
-                    <option>조합키 (Modifier)</option>
-                    <option>매크로 (Macro)</option>
-                    <option>미디어 (Media)</option>
+    <div class="edit-panel">
+        <div class="panel-section">
+            <div class="section-header">KEY EDIT</div>
+            <div class="edit-info">
+                편집 중: <span id="current-key-display">KEY 3</span>
+                <span id="current-layer-display">(Layer 0)</span>
+            </div>
+            
+            <div class="form-group">
+                <label>입력 타입</label>
+                <select id="type-select">
+                    <option value="1">단일키 (Normal)</option>
+                    <option value="2">조합키 (Modifier)</option>
+                    <option value="3">매크로 (Macro)</option>
                 </select>
             </div>
-            <div class="field">
-                <label>키 설정 값</label>
-                <input type="text" value="A">
+            <div class="form-group">
+                <label>키/문구 설정</label>
+                <input type="text" id="val-input" placeholder="키코드 또는 텍스트 입력">
             </div>
-            <button class="btn btn-primary" style="width: 100%;">편집 적용</button>
+            <button class="btn btn-device" style="width:100%; padding:10px">현재 키 편집 적용</button>
         </div>
 
-        <div class="card">
-            <div class="card-title">System & Sound</div>
-            <div class="field">
-                <label>부저 볼륨</label>
-                <input type="range" style="width: 100%;">
+        <div class="panel-section">
+            <div class="section-header">SYSTEM CONTROL</div>
+            <div class="form-group">
+                <label>부저 볼륨: <span id="vol-val">36</span>%</label>
+                <input type="range" min="0" max="100" value="36" oninput="document.getElementById('vol-val').innerText=this.value">
             </div>
-            <div style="display: flex; gap: 5px;">
-                <button class="btn btn-outline" style="flex:1">설정 읽기</button>
-                <button class="btn btn-outline" style="flex:1">초기화</button>
-            </div>
+            <button class="btn btn-outline" style="width:100%">부저 테스트</button>
         </div>
 
-        <div class="bottom-actions">
-            <button class="btn btn-primary btn-big" style="background:#2ea44f;">기기에 적용 (SAVE)</button>
-            <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);">펌웨어 업데이트</button>
+        <div class="sticky-bottom">
+            <button class="btn-apply">기기에 적용하기 (Save to Device)</button>
+            <button class="btn btn-danger" style="border:none; opacity:0.6; font-size:11px">펌웨어 업그레이드 모드</button>
         </div>
     </div>
 </main>
 
 <script>
-    function selectKey(id) {
-        document.querySelectorAll('.key').forEach(k => k.classList.remove('active'));
-        event.currentTarget.classList.add('active');
-        document.getElementById('key-name').innerText = "편집 중: KEY " + id;
+    // 샘플 데이터 기반 렌더링
+    const grid = document.getElementById('main-grid');
+    const keyContents = ["ESC", "Macro: ID", "ab6IDcde...", "Ctrl+A", "Ctrl+Z", "Ctrl+Y", "Ctrl+C", "Ctrl+V", "Ctrl+S"];
+    
+    for(let i=0; i<9; i++) {
+        const div = document.createElement('div');
+        div.className = `key-unit ${i===2 ? 'active' : ''}`; // 예제: KEY 3 활성화
+        div.innerHTML = `
+            <span class="key-num">K${i+1}</span>
+            <div class="key-content">${keyContents[i]}</div>
+        `;
+        div.onclick = () => selectKey(i+1);
+        grid.appendChild(div);
     }
+
+    function selectKey(num) {
+        document.querySelectorAll('.key-unit').forEach(k => k.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        document.getElementById('current-key-display').innerText = `KEY ${num}`;
+    }
+
     async function connect() {
         try { await navigator.serial.requestPort(); } catch(e) {}
     }
