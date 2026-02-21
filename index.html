@@ -63,7 +63,6 @@ html, body { font-size: 16px !important; }
 
 <header>
     <div style="font-weight:bold; margin-right:10px; color:var(--accent);">MACROPAD v18.7 FINAL</div>
-    <span id="fw-info" style="font-size:0.9em; color:#8b949e; margin-right:10px;"></span>
     <span id="conn-status" class="status-tag status-off">○ 연결 해제됨</span>
     <button class="btn btn-blue" id="btn-conn" onclick="connectDevice()">기기 연결</button>
     <button class="btn" id="btn-disconn" onclick="disconnectDevice()" style="display:none; color:var(--red);">연결 해제</button>
@@ -71,7 +70,9 @@ html, body { font-size: 16px !important; }
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="uploadData()">현재값 다운로드</button>
     <button class="btn" onclick="downloadConfig()">설정값 업로드</button>
+    <button class="btn btn-orange" onclick="document.getElementById('fw-in').click()">로컬 .bin 업로드</button>
     <button class="btn btn-orange" onclick="uploadFirmwareFromServer()" style="margin-left:8px;">서버 펌웨어 업로드</button>
+    <span style="font-size:0.9em;display:block;margin-top:4px;">.bin 파일을 선택하거나, 서버에 있는 펌웨어 파일을 자동으로 가져옵니다.</span>
     <input type="file" id="fw-in" accept=".bin" style="display:none" onchange="uploadFirmware(event)">
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="saveToFile()">파일 저장</button>
@@ -180,17 +181,12 @@ html, body { font-size: 16px !important; }
             "keys": Array.from({ length: 11 }, () => ({ "type": 1, "key1": 0, "key2": 0, "macro": "" }))
         }))
     };
-    // firmware versions
-    let curFwVersion = '';
-    let manifestVersion = '';
     let curL = 0, curK = 0, port, reader;
 
     const rows = [['Esc','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'],['1','2','3','4','5','6','7','8','9','0','-','='],['Q','W','E','R','T','Y','U','I','O','P','[',']'],['A','S','D','F','G','H','J','K','L',';','Enter'],['Z','X','C','V','B','N','M',',','.','/','Space']];
 
     function init() {
         renderLayers();
-        fetchManifestVersion();
-        updateHeaderVersions();
         const grid = document.getElementById('main-grid');
         // 단순 생성: 인덱스 i가 곧 keyIndex이며 K1~K9 표기
         for (let i = 0; i < 9; i++) {
@@ -221,30 +217,6 @@ html, body { font-size: 16px !important; }
     function renderLayers() {
         const tabs = document.getElementById('layer-tabs');
         tabs.innerHTML = "";
-    }
-
-    function updateHeaderVersions() {
-        const el = document.getElementById('fw-info');
-        let text = '';
-        if (curFwVersion) text += `현재: ${curFwVersion}`;
-        if (manifestVersion) {
-            if (text) text += ' | ';
-            text += `최신: ${manifestVersion}`;
-        }
-        el.innerText = text;
-    }
-
-    async function fetchManifestVersion() {
-        try {
-            const resp = await fetch('manifest.json');
-            if (resp.ok) {
-                const mf = await resp.json();
-                if (mf.version) manifestVersion = mf.version;
-                updateHeaderVersions();
-            }
-        } catch(e) {
-            debugLog('manifest fetch failed: ' + e.message);
-        }
     }
         config.layerTitles.forEach((t, i) => {
             const btn = document.createElement('button');
@@ -472,10 +444,6 @@ html, body { font-size: 16px !important; }
                 }
                 debugLog('JSON 파싱 및 구조 검증 성공!');
                 config = parsed;
-                if (parsed.fwVersion) {
-                    curFwVersion = parsed.fwVersion;
-                    updateHeaderVersions();
-                }
                 // debug: 각 키값 확인
                 try {
                     config.layers.forEach((layer, li) => {
