@@ -70,7 +70,9 @@ html, body { font-size: 16px !important; }
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="uploadData()">현재값 다운로드</button>
     <button class="btn" onclick="downloadConfig()">설정값 업로드</button>
-    <button class="btn btn-orange" onclick="alert('펌웨어 업데이트 모드 진입...')">펌웨어 업그레이드</button>
+    <button class="btn btn-orange" onclick="document.getElementById('fw-in').click()">펌웨어 업그레이드</button>
+    <span style="font-size:0.9em;display:block;margin-top:4px;">.bin 파일을 선택하면 자동으로 기기에 플래시됩니다.</span>
+    <input type="file" id="fw-in" accept=".bin" style="display:none" onchange="uploadFirmware(event)">
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="saveToFile()">파일 저장</button>
     <button class="btn" onclick="document.getElementById('f-in').click()">파일 읽기</button>
@@ -115,6 +117,9 @@ html, body { font-size: 16px !important; }
         </select>
 
         <div id="ui-1" class="type-ui active">
+            <div style="font-size:12px; color:#8b949e; margin-bottom:6px;">
+                <em>여러 수정자 조합 가능 (예: Ctrl+Alt+F)</em>
+            </div>
             <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:12px;">
                 <label><input type="checkbox" class="mod" value="Ctrl"> Ctrl</label>
                 <label><input type="checkbox" class="mod" value="Shift"> Shift</label>
@@ -284,6 +289,44 @@ html, body { font-size: 16px !important; }
             debugLog("Error reading response: " + e.message);
             if (reader) try { reader.releaseLock(); } catch(err){}
         }
+    }
+
+    async function uploadFirmware(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (!port) return alert("기기가 연결되어 있지 않습니다.");
+        showStatus("펌웨어 전송 중...", file.name);
+        debugLog(`Uploading firmware ${file.name} (${file.size} bytes)`);
+        const array = await file.arrayBuffer();
+        const writer = port.writable.getWriter();
+        // notify device of upcoming size
+        await writer.write(new TextEncoder().encode(`FWUP ${array.byteLength}\n`));
+        // send raw binary
+        await writer.write(new Uint8Array(array));
+        writer.releaseLock();
+        // read response line
+        try {
+            const decoder = new TextDecoder();
+            reader = port.readable.getReader();
+            let line = "";
+            const start = Date.now();
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                line += decoder.decode(value);
+                if (line.includes("\n")) break;
+                if (Date.now() - start > 10000) {
+                    debugLog("Firmware: 응답 타임아웃");
+                    break;
+                }
+            }
+            reader.releaseLock();
+            if (line.length) debugLog("Firmware response: " + line.trim());
+        } catch(e) {
+            debugLog("Firmware upload read error: " + e.message);
+            if (reader) try { reader.releaseLock(); } catch(err){}
+        }
+        hideStatus();
     }
 
     function sendReset() { if(confirm("기기를 초기 공장설정으로 리셋하시겠습니까?")) sendCommand("RESET"); }
