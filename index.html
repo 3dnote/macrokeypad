@@ -3,193 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MacroKeypad Configurator</title>
+    <title>MacroKeypad Manager</title>
     <style>
         :root {
             --bg: #0d1117;
             --card: #161b22;
-            --accent: #58a6ff; /* 파란색: 기기/동작 */
-            --success: #2ea44f; /* 녹색: 저장/적용 */
-            --warning: #dbab09; /* 황색: 불러오기/파일 */
-            --danger: #f85149; /* 빨간색: 초기화/업데이트 */
-            --text: #c9d1d9;
+            --accent: #58a6ff;   /* 기기 관련: 파란색 */
+            --warning: #d29922;  /* 파일 관련: 주황색 */
+            --success: #238636;  /* 최종 적용: 초록색 */
+            --danger: #da3633;   /* 해제/초기화: 빨간색 */
+            --text: #ffffff;
             --border: #30363d;
         }
 
         body {
-            margin: 0; padding: 0; font-family: 'Pretendard', sans-serif;
+            margin: 0; font-family: 'Pretendard', sans-serif;
             background: var(--bg); color: var(--text);
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
-        /* 헤더: 메뉴 버튼 그룹화 */
+        /* 헤더 메뉴 그룹화 */
         header {
-            padding: 10px 20px; background: #010409;
+            padding: 20px 30px; background: #010409;
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border);
-            height: 60px;
+            border-bottom: 2px solid var(--border);
         }
-        .logo-text { font-size: 18px; font-weight: 800; color: var(--accent); }
         
-        .nav-group { display: flex; gap: 10px; align-items: center; }
-        .v-line { width: 1px; height: 20px; background: var(--border); margin: 0 5px; }
+        .menu-section { display: flex; align-items: center; gap: 15px; }
+        .group-label { font-size: 14px; font-weight: 800; color: #8b949e; margin-right: 5px; }
 
         .btn {
-            padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
-            font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
-            background: transparent; color: var(--text);
+            padding: 12px 18px; border-radius: 8px; border: 2px solid transparent;
+            font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s;
         }
-        .btn-file { border-color: var(--warning); color: var(--warning); } /* 파일 관련 */
+        
+        /* 파일 그룹 버튼 */
+        .btn-file { background: transparent; border-color: var(--warning); color: var(--warning); }
         .btn-file:hover { background: var(--warning); color: #000; }
-        .btn-device { border-color: var(--accent); color: var(--accent); } /* 기기 관련 */
-        .btn-device:hover { background: var(--accent); color: white; }
-        .btn-danger { border-color: var(--danger); color: var(--danger); }
-        .btn-danger:hover { background: var(--danger); color: white; }
+
+        /* 기기 그룹 버튼 */
+        .btn-device { background: transparent; border-color: var(--accent); color: var(--accent); }
+        .btn-device:hover { background: var(--accent); color: #fff; }
+        .btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
 
         main { display: flex; flex: 1; overflow: hidden; }
 
-        /* 좌측: 키패드 */
-        .keypad-area {
+        /* 좌측 키패드 (글자 크기 대폭 확대) */
+        .visual-area {
             flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: radial-gradient(circle at center, #1c212e 0%, #0d1117 100%);
-            padding: 20px;
+            padding: 40px; background: radial-gradient(circle, #1c212e 0%, #0d1117 100%);
         }
-        .layer-labels { display: flex; gap: 8px; margin-bottom: 20px; }
-        .layer-tag {
-            padding: 6px 15px; border-radius: 6px; background: var(--card);
-            border: 1px solid var(--border); font-size: 13px; cursor: pointer;
+        .layer-title-bar { display: flex; gap: 10px; margin-bottom: 30px; }
+        .layer-btn {
+            padding: 15px 30px; border-radius: 12px; background: var(--card);
+            border: 2px solid var(--border); font-size: 18px; font-weight: bold; cursor: pointer;
         }
-        .layer-tag.active { border-color: var(--accent); color: var(--accent); font-weight: bold; }
+        .layer-btn.active { border-color: var(--accent); color: var(--accent); }
 
         .grid-3x3 {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-            width: 100%; max-width: 400px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+            width: 100%; max-width: 550px;
         }
-        .key-unit {
-            aspect-ratio: 1/1; background: var(--card); border: 2px solid var(--border);
-            border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; position: relative;
+        .key {
+            aspect-ratio: 1/1; background: var(--card); border: 4px solid var(--border);
+            border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer;
         }
-        .key-unit.active { border-color: var(--accent); box-shadow: 0 0 15px rgba(88, 166, 255, 0.2); }
-        .key-num { position: absolute; top: 8px; left: 10px; font-size: 10px; color: #555; }
-        .key-content { font-size: 14px; font-weight: 700; color: var(--text); text-align: center; }
+        .key.active { border-color: var(--accent); box-shadow: 0 0 30px rgba(88, 166, 255, 0.3); }
+        .key .val { font-size: 26px; font-weight: 900; color: var(--accent); }
 
-        /* 우측: 편집 패널 */
-        .edit-panel {
-            width: 350px; background: #0d1117; border-left: 1px solid var(--border);
-            padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
+        /* 우측 편집 패널 */
+        .side-panel {
+            width: 450px; background: #0d1117; padding: 35px;
+            border-left: 2px solid var(--border); display: flex; flex-direction: column; gap: 30px;
         }
-        .panel-section { background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border); }
-        .section-header { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 5px;}
+        .info-header { font-size: 28px; font-weight: 900; }
+        .info-sub { font-size: 18px; color: #8b949e; margin-top: 5px; }
 
-        .edit-info { font-size: 18px; font-weight: 800; margin-bottom: 15px; }
-        .edit-info span { color: var(--accent); font-size: 14px; margin-left: 5px; }
-
-        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-        .form-group label { font-size: 12px; color: #8b949e; }
+        .form-group { display: flex; flex-direction: column; gap: 12px; }
+        label { font-size: 18px; font-weight: 700; }
         select, input {
-            padding: 10px; border-radius: 6px; background: #010409;
-            border: 1px solid var(--border); color: white; font-size: 13px;
+            padding: 18px; border-radius: 12px; background: #000;
+            border: 2px solid var(--border); color: #fff; font-size: 20px; font-weight: bold;
         }
 
-        /* 하단 고정 버튼부 */
-        .sticky-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
-        .btn-apply { background: var(--success); color: white; padding: 15px; border-radius: 8px; font-size: 15px; border: none; font-weight: bold; cursor: pointer; }
+        /* 하단 큰 저장 버튼 */
+        .footer-save { margin-top: auto; }
+        .btn-apply-final {
+            width: 100%; padding: 25px; border-radius: 15px; background: var(--success);
+            color: #fff; border: none; font-size: 22px; font-weight: 900; cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo-text">MacroKeypad <span style="font-size:10px; vertical-align:middle; opacity:0.6">Web Serial Config</span></div>
-    
-    <div class="nav-group">
-        <button class="btn btn-file" title="PC의 JSON 파일 불러오기">파일 불러오기</button>
-        <button class="btn btn-file" title="현재 설정을 PC에 JSON으로 저장">파일로 저장</button>
-        
-        <div class="v-line"></div>
-        
+    <div class="menu-section">
+        <span class="group-label">💻 FILE</span>
+        <button class="btn btn-file">파일 불러오기</button>
+        <button class="btn btn-file">파일 저장하기</button>
+    </div>
+
+    <div class="menu-section">
+        <span class="group-label">🎮 DEVICE</span>
         <button class="btn btn-device" onclick="connect()">기기 연결</button>
-        <button class="btn btn-device" title="연결된 기기의 현재 매핑 읽기">기기설정 불러오기</button>
-        <button class="btn btn-danger" title="모든 설정을 공장 초기화">기본값 초기화</button>
+        <button class="btn btn-danger" onclick="disconnect()">연결 해제</button>
+        <div style="width:2px; height:25px; background:var(--border)"></div>
+        <button class="btn btn-device">기기에서 불러오기</button>
+        <button class="btn btn-danger">기기 초기화</button>
     </div>
 </header>
 
 <main>
-    <div class="keypad-area">
-        <div class="layer-labels">
-            <div class="layer-tag active">Layer 0 (문서용)</div>
-            <div class="layer-tag">Layer 1 (동영상용)</div>
-            <div class="layer-tag">Layer 2 (코딩용)</div>
-            <div class="layer-tag">Layer 3 (기타)</div>
+    <div class="visual-area">
+        <div class="layer-title-bar">
+            <button class="layer-btn active">LAYER 0 (문서용)</button>
+            <button class="layer-btn">LAYER 1</button>
+            <button class="layer-btn">LAYER 2</button>
         </div>
-        <div class="grid-3x3" id="main-grid">
-            </div>
+        <div class="grid-3x3">
+            <script>
+                for(let i=1; i<=9; i++) {
+                    document.write(`
+                        <div class="key ${i==3?'active':''}">
+                            <span style="font-size:14px; margin-bottom:10px; opacity:0.5">K${i}</span>
+                            <span class="val">${i==3?'MACRO':'A'}</span>
+                        </div>
+                    `);
+                }
+            </script>
+        </div>
     </div>
 
-    <div class="edit-panel">
-        <div class="panel-section">
-            <div class="section-header">KEY EDIT</div>
-            <div class="edit-info">
-                편집 중: <span id="current-key-display">KEY 3</span>
-                <span id="current-layer-display">(Layer 0)</span>
-            </div>
-            
-            <div class="form-group">
-                <label>입력 타입</label>
-                <select id="type-select">
-                    <option value="1">단일키 (Normal)</option>
-                    <option value="2">조합키 (Modifier)</option>
-                    <option value="3">매크로 (Macro)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>키/문구 설정</label>
-                <input type="text" id="val-input" placeholder="키코드 또는 텍스트 입력">
-            </div>
-            <button class="btn btn-device" style="width:100%; padding:10px">현재 키 편집 적용</button>
+    <div class="side-panel">
+        <div>
+            <div class="info-header">편집 중: KEY 3</div>
+            <div class="info-sub">레이어: Layer 0 (문서용)</div>
         </div>
 
-        <div class="panel-section">
-            <div class="section-header">SYSTEM CONTROL</div>
-            <div class="form-group">
-                <label>부저 볼륨: <span id="vol-val">36</span>%</label>
-                <input type="range" min="0" max="100" value="36" oninput="document.getElementById('vol-val').innerText=this.value">
-            </div>
-            <button class="btn btn-outline" style="width:100%">부저 테스트</button>
+        <div class="form-group">
+            <label>동작 타입 선택</label>
+            <select>
+                <option>단일키 (Single)</option>
+                <option selected>매크로 (Macro)</option>
+                <option>미디어 (Media)</option>
+            </select>
         </div>
 
-        <div class="sticky-bottom">
-            <button class="btn-apply">기기에 적용하기 (Save to Device)</button>
-            <button class="btn btn-danger" style="border:none; opacity:0.6; font-size:11px">펌웨어 업그레이드 모드</button>
+        <div class="form-group">
+            <label>키/문구 설정</label>
+            <input type="text" value="ab6IDcdefghikAB">
+        </div>
+
+        <div class="form-group">
+            <label>부저 볼륨 (36%)</label>
+            <input type="range" min="0" max="100" value="36" style="height:40px;">
+        </div>
+
+        <div class="footer-save">
+            <button class="btn-apply-final">기기에 적용하기 (SAVE)</button>
+            <p style="text-align: center; color: #555; margin-top: 15px; font-weight: bold;">최종 설정을 기기에 전송합니다.</p>
         </div>
     </div>
 </main>
 
 <script>
-    // 샘플 데이터 기반 렌더링
-    const grid = document.getElementById('main-grid');
-    const keyContents = ["ESC", "Macro: ID", "ab6IDcde...", "Ctrl+A", "Ctrl+Z", "Ctrl+Y", "Ctrl+C", "Ctrl+V", "Ctrl+S"];
-    
-    for(let i=0; i<9; i++) {
-        const div = document.createElement('div');
-        div.className = `key-unit ${i===2 ? 'active' : ''}`; // 예제: KEY 3 활성화
-        div.innerHTML = `
-            <span class="key-num">K${i+1}</span>
-            <div class="key-content">${keyContents[i]}</div>
-        `;
-        div.onclick = () => selectKey(i+1);
-        grid.appendChild(div);
-    }
-
-    function selectKey(num) {
-        document.querySelectorAll('.key-unit').forEach(k => k.classList.remove('active'));
-        event.currentTarget.classList.add('active');
-        document.getElementById('current-key-display').innerText = `KEY ${num}`;
-    }
-
-    async function connect() {
-        try { await navigator.serial.requestPort(); } catch(e) {}
-    }
+    function connect() { alert("기기 탐색을 시작합니다."); }
+    function disconnect() { alert("기기 연결을 해제했습니다."); }
 </script>
 </body>
 </html>
