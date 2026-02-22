@@ -143,6 +143,7 @@
 <!-- 디버그 콘솔 패널 -->
 <div id="debug-console" style="position:fixed; left:0; right:0; bottom:0; height:180px; background:#181c22; color:#b5e0ff; font-size:12px; border-top:2px solid #222; z-index:9999; overflow-y:auto; padding:8px 16px; display:none;"></div>
 <button id="toggle-debug" style="position:fixed; right:16px; bottom:190px; z-index:10000; background:#222; color:#b5e0ff; border:1px solid #444; border-radius:6px; padding:6px 14px; font-size:13px; display:none;">디버그 콘솔</button>
+
 <!-- Ctrl+Shift+D 단축키로 표시 -->
 <script>
     // 디버그 콘솔 함수
@@ -181,6 +182,18 @@
     const DEBUG_FIRMWARE_CHUNK = false;
     // temporary log storage for firmware upload feedback
     let fwLogs = [];
+    // restore any logs left from previous upload (before reload)
+    const prev = localStorage.getItem('fwLogs');
+    if (prev) {
+        try {
+            const arr = JSON.parse(prev);
+            if (Array.isArray(arr)) {
+                arr.forEach(l => debugLog('[prev upload] ' + l));
+                debugLog('이전 펌웨어 업로드 로그:\n' + arr.join('\n'));
+            }
+        } catch(e) {}
+        localStorage.removeItem('fwLogs');
+    }
     function logFw(msg) {
         console.log(msg);
         debugLog(msg);
@@ -291,7 +304,7 @@
             document.getElementById('btn-disconn').style.display = "inline-block";
             // 자동으로 현재 설정/버전 받기
             uploadData();
-        } catch (e) { alert("연결 실패: " + e); }
+        } catch (e) { debugLog("연결 실패: " + e); }
     }
 
     async function disconnectDevice() {
@@ -308,7 +321,7 @@
     }
 
     async function sendCommand(cmd) {
-        if (!port) return alert("기기가 연결되어 있지 않습니다.");
+        if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
         // 항상 명령어만 전송 (layerTitles 미포함)
         const writer = port.writable.getWriter();
         await writer.write(new TextEncoder().encode(cmd + "\n"));
@@ -317,7 +330,7 @@
 
     // 현재 UI에 표시된 설정을 JSON 문자열로 만들어 기기로 전송
     async function downloadConfig() {
-        if (!port) return alert("기기가 연결되어 있지 않습니다.");
+        if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
         // layerTitles는 기기에서 사용하지 않음
         const exportConfig = Object.assign({}, config, {
             layerTitles: undefined
@@ -338,28 +351,51 @@
     }
     function hideStatus() { document.getElementById('progress-overlay').style.display = 'none'; }
 
+    function doReboot() {
+        debugLog('Sending RESET to device');
+        sendCommand('RESET');
+        setTimeout(() => {
+            try { disconnectDevice(); } catch(e) {}
+            location.reload();
+        }, 2000);
+    }
+
+
+
     // internal helper: upload given arraybuffer/blob as firmware
     async function uploadFirmwareArray(buffer, name) {
-        if (!port) return alert("기기가 연결되어 있지 않습니다.");
+        if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
         showStatus("펌웨어 전송 준비...", name || "");
-        // start reading device messages in parallel
+        // start reading device messages in parallel using a shared reader
         let readCancelled = false;
         const decoder = new TextDecoder();
         const startReader = async () => {
             try {
-                const rdr = port.readable.getReader();
-                while (!readCancelled) {
-                    const { value, done } = await rdr.read();
+                reader = port.readable.getReader();
+                while (!readCancelled && reader) {
+                    let value, done;
+                    try {
+                        ({ value, done } = await reader.read());
+                    } catch(err) {
+                        debugLog('reader.read failed: ' + err.message);
+                        break;
+                    }
                     if (done) break;
                     if (value) {
                         const txt = decoder.decode(value);
                         console.log('[device]', txt.replace(/\r?\n/g,'\\n'));
                         debugLog('[device] ' + txt);
+                        // also save device output so error messages survive page reload
+                        fwLogs.push('[device] ' + txt.trim());
                     }
                 }
-                rdr.releaseLock();
             } catch(e) {
-                // ignore
+                debugLog('startReader error: ' + e.message);
+            } finally {
+                if (reader) {
+                    try { reader.releaseLock(); } catch(e) { /*ignore*/ }
+                    reader = null;
+                }
             }
         };
         startReader();
@@ -384,57 +420,49 @@
             showStatus("펌웨어 전송 중...", `${name} ${((sent/total)*100).toFixed(1)}%`);
         }
         writer.releaseLock();
-        // read until FW_DONE or FW_FAIL comes back (or timeout)
+        // wait up to 5s for an FW_DONE/FW_FAIL or any error text to appear in fwLogs
         try {
             showStatus('업데이트 확인 중...', '대기');
-            const decoder = new TextDecoder();
-            reader = port.readable.getReader();
-            let response = '';
-            // cancel the reader after timeout
-            const cancelTimer = setTimeout(() => {
-                if (reader) {
-                    try { reader.cancel(); } catch(e) {}
-                }
-            }, 5000);
-            while (true) {
-                try {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    if (value) {
-                        response += decoder.decode(value);
-                        if (response.includes('FW_DONE') || response.includes('FW_FAIL')) break;
-                    }
-                } catch(err) {
-                    // likely cancelled or timeout
+            const start = Date.now();
+            while (Date.now() - start < 5000) {
+                const joined = fwLogs.join('\n');
+                if (joined.includes('FW_DONE') || joined.includes('FW_FAIL') || /error/i.test(joined) || /fail/i.test(joined)) {
                     break;
                 }
+                await new Promise(r=>setTimeout(r, 100));
             }
-            clearTimeout(cancelTimer);
-            try { reader.releaseLock(); } catch(e) {}
-            if (response.length) {
-                console.log('[firmware] update response', response.replace(/\r|\n/g,' '));
-                debugLog('FW response: ' + response.replace(/\r|\n/g,' '));
-                if (response.includes('FW_DONE')) {
-                    // assume new version installed
-                    if (manifestVersion) {
-                        curFwVersion = manifestVersion;
-                        updateHeaderVersions();
-                    }
-                } else if (response.includes('FW_FAIL')) {
-                    alert('펌웨어 업로드 실패 (장치에서 오류 응답)');
-                    hideStatus();
-                    return;
+            const response = fwLogs.join('\n');
+            console.log('[firmware] update response', response.replace(/\r|\n/g,' '));
+            debugLog('FW response: ' + response.replace(/\r|\n/g,' '));
+            // failure detection
+            if (response.includes('FW_FAIL') || /error/i.test(response) || /fail/i.test(response)) {
+                debugLog('펌웨어 업로드 실패: 장치가 오류를 보고했습니다.\n\n로그:\n' + fwLogs.join('\n'));
+                hideStatus();
+                return;
+            }
+            if (response.includes('FW_DONE')) {
+                if (manifestVersion) {
+                    curFwVersion = manifestVersion;
+                    updateHeaderVersions();
                 }
             }
         } catch(e) {
-            debugLog('Firmware update read error: ' + e.message);
+            debugLog('Firmware update polling error: ' + e.message);
             if (reader) try { reader.releaseLock(); } catch(e){}
         }
         hideStatus();
-        alert('펌웨어 업로드 완료\n기기가 자동으로 재시작됩니다.');
-        try { disconnectDevice(); } catch(e) {}
-        // reload immediately to hide any transient USB error messages from boot
-        location.reload();
+        // confirm restart without logs
+        try {
+            const msg = '펌웨어 업로드 완료\n기기가 자동으로 재시작됩니다.';
+            if (confirm(msg)) {
+                doReboot();
+            }
+        } catch(e) {
+            // ignore
+        }
+        // persist logs in case page reload hides them
+        try { localStorage.setItem('fwLogs', JSON.stringify(fwLogs)); } catch(e) {}
+        // do not auto-reload; user can also press reboot button
     }
 
 
@@ -475,7 +503,7 @@
             debugLog('manifest load error: ' + e.message);
         }
         if (!manifestOK) {
-            alert('manifest.json을 가져오지 못했습니다. 서버에 manifest.json이 존재하는지 확인하세요.\n계속 진행시 기본 firmware.bin을 시도합니다.');
+            debugLog('manifest.json fetch failed, using default firmware.bin');
         }
         try {
             const fwUrlWithTs = fwUrl + '?t=' + Date.now();
@@ -492,13 +520,13 @@
             await uploadFirmwareArray(blob, fwUrl);
         } catch (err) {
             hideStatus();
-            alert('서버 펌웨어 다운로드 실패: ' + err.message + '\nURL: ' + fwUrl);
+            debugLog('서버 펌웨어 다운로드 실패: ' + err.message + '\nURL: ' + fwUrl);
             debugLog('updateFromServer error: ' + err.message);
         }
     }
 
     async function uploadData() {
-        if (!port) return alert("기기를 먼저 연결해주세요.");
+        if (!port) { debugLog("기기를 먼저 연결해주세요."); return; }
         showStatus("설정 데이터 요청 중...", "명령어 송신 완료");
         
         try {
@@ -703,7 +731,7 @@
         a.download = "keymap.json";
         a.click();
     }
-    function readFromFile(e) { const r = new FileReader(); r.onload = (ev) => { try { const d = JSON.parse(ev.target.result); if(d.layers && d.layers.length === 4) { config = d; renderLayers(); refresh(); alert("파일 불러오기 완료!"); } else { alert("레이어 4개 규격의 파일이 아닙니다."); } } catch(err) { alert("JSON 파싱 에러"); } }; r.readAsText(e.target.files[0]); }
+    function readFromFile(e) { const r = new FileReader(); r.onload = (ev) => { try { const d = JSON.parse(ev.target.result); if(d.layers && d.layers.length === 4) { config = d; renderLayers(); refresh(); debugLog("파일 불러오기 완료!"); } else { debugLog("레이어 4개 규격의 파일이 아닙니다."); } } catch(err) { debugLog("JSON 파싱 에러"); } }; r.readAsText(e.target.files[0]); }
     function refresh() {
         try {
             if (!config.layers || !Array.isArray(config.layers)) {
