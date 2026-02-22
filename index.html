@@ -2,11 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MacroPad Pro Manager v18.7 FINAL REVISED</title>
     <style>
-        :root { --bg: #0b1117; --panel: #161b22; --accent: #58a6ff; --text: #c9d1d9; --border: #30363d; --green: #3fb950; --red: #f85149; font-size: 16px; }
-html, body { font-size: 16px !important; }
+        :root { --bg: #0b1117; --panel: #161b22; --accent: #58a6ff; --text: #c9d1d9; --border: #30363d; --green: #3fb950; --red: #f85149; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
         header { height: 60px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
@@ -63,6 +61,7 @@ html, body { font-size: 16px !important; }
 
 <header>
     <div style="font-weight:bold; margin-right:10px; color:var(--accent);">MACROPAD v18.7 FINAL</div>
+    <span id="fw-info" style="font-size:0.9em; color:#8b949e; margin-right:10px;"></span>
     <span id="conn-status" class="status-tag status-off">○ 연결 해제됨</span>
     <button class="btn btn-blue" id="btn-conn" onclick="connectDevice()">기기 연결</button>
     <button class="btn" id="btn-disconn" onclick="disconnectDevice()" style="display:none; color:var(--red);">연결 해제</button>
@@ -70,10 +69,7 @@ html, body { font-size: 16px !important; }
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="uploadData()">현재값 다운로드</button>
     <button class="btn" onclick="downloadConfig()">설정값 업로드</button>
-    <button class="btn btn-orange" onclick="document.getElementById('fw-in').click()">로컬 .bin 업로드</button>
-    <button class="btn btn-orange" onclick="uploadFirmwareFromServer()" style="margin-left:8px;">서버 펌웨어 업로드</button>
-    <span style="font-size:0.9em;display:block;margin-top:4px;">.bin 파일을 선택하거나, 서버에 있는 펌웨어 파일을 자동으로 가져옵니다.</span>
-    <input type="file" id="fw-in" accept=".bin" style="display:none" onchange="uploadFirmware(event)">
+    <button class="btn btn-orange" onclick="uploadFirmwareFromServer()">서버 펌웨어 업로드</button>
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="saveToFile()">파일 저장</button>
     <button class="btn" onclick="document.getElementById('f-in').click()">파일 읽기</button>
@@ -118,9 +114,6 @@ html, body { font-size: 16px !important; }
         </select>
 
         <div id="ui-1" class="type-ui active">
-            <div style="font-size:12px; color:#8b949e; margin-bottom:6px;">
-                <em>여러 수정자 조합 가능 (예: Ctrl+Alt+F)</em>
-            </div>
             <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:12px;">
                 <label><input type="checkbox" class="mod" value="Ctrl"> Ctrl</label>
                 <label><input type="checkbox" class="mod" value="Shift"> Shift</label>
@@ -181,12 +174,26 @@ html, body { font-size: 16px !important; }
             "keys": Array.from({ length: 11 }, () => ({ "type": 1, "key1": 0, "key2": 0, "macro": "" }))
         }))
     };
+    // firmware versions
+    let curFwVersion = '';
+    let manifestVersion = '';
+    // whether to dump chunk contents in console (too verbose normally)
+    const DEBUG_FIRMWARE_CHUNK = false;
+    // temporary log storage for firmware upload feedback
+    let fwLogs = [];
+    function logFw(msg) {
+        console.log(msg);
+        debugLog(msg);
+        fwLogs.push(msg);
+    }
     let curL = 0, curK = 0, port, reader;
 
     const rows = [['Esc','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'],['1','2','3','4','5','6','7','8','9','0','-','='],['Q','W','E','R','T','Y','U','I','O','P','[',']'],['A','S','D','F','G','H','J','K','L',';','Enter'],['Z','X','C','V','B','N','M',',','.','/','Space']];
 
     function init() {
         renderLayers();
+        fetchManifestVersion();
+        updateHeaderVersions();
         const grid = document.getElementById('main-grid');
         // 단순 생성: 인덱스 i가 곧 keyIndex이며 K1~K9 표기
         for (let i = 0; i < 9; i++) {
@@ -217,7 +224,6 @@ html, body { font-size: 16px !important; }
     function renderLayers() {
         const tabs = document.getElementById('layer-tabs');
         tabs.innerHTML = "";
-    }
         config.layerTitles.forEach((t, i) => {
             const btn = document.createElement('button');
             btn.className = `layer-btn ${i===curL?'active':''}`;
@@ -226,18 +232,74 @@ html, body { font-size: 16px !important; }
         });
     }
 
+    function isVersionOlder(a,b) {
+        const pa = a.split('.').map(Number);
+        const pb = b.split('.').map(Number);
+        for (let i=0;i<Math.max(pa.length,pb.length);i++) {
+            const va = pa[i]||0;
+            const vb = pb[i]||0;
+            if (va < vb) return true;
+            if (va > vb) return false;
+        }
+        return false;
+    }
+
+    function updateHeaderVersions() {
+        const el = document.getElementById('fw-info');
+        let text = '';
+        let warn = false;
+        if (curFwVersion) text += `현재: ${curFwVersion}`;
+        if (manifestVersion) {
+            if (text) text += ' | ';
+            text += `최신: ${manifestVersion}`;
+            if (curFwVersion && isVersionOlder(curFwVersion, manifestVersion)) {
+                warn = true;
+            }
+        }
+        el.innerText = text;
+        el.style.color = warn ? '#ff6b6b' : '#8b949e';
+    }
+
+    async function fetchManifestVersion() {
+        try {
+            // append timestamp to bypass browser cache
+            const url = 'manifest.json?t=' + Date.now();
+            console.log('[manifest] fetching', url);
+            const resp = await fetch(url);
+            if (resp.ok) {
+                const mf = await resp.json();
+                if (mf.version) {
+                    manifestVersion = mf.version;
+                    console.log('[manifest] version', manifestVersion);
+                }
+                updateHeaderVersions();
+            }
+        } catch(e) {
+            debugLog('manifest fetch failed: ' + e.message);
+        }
+    }
+
     async function connectDevice() {
         try {
             port = await navigator.serial.requestPort();
-            await port.open({ baudRate: 115200 });
+            const br = 460800; // 속도를 높이면 전송이 빨라집니다
+            console.log('[serial] opening at', br);
+            await port.open({ baudRate: br });
             document.getElementById('conn-status').innerText = "● 기기 연결됨";
             document.getElementById('conn-status').className = "status-tag status-on";
             document.getElementById('btn-conn').style.display = "none";
             document.getElementById('btn-disconn').style.display = "inline-block";
+            // 자동으로 현재 설정/버전 받기
+            uploadData();
         } catch (e) { alert("연결 실패: " + e); }
     }
 
     async function disconnectDevice() {
+        if (reader) {
+            try { await reader.cancel(); } catch(e) {}
+            try { reader.releaseLock(); } catch(e) {}
+            reader = null;
+        }
         if (port) { await port.close(); port = null; }
         document.getElementById('conn-status').innerText = "○ 연결 해제됨";
         document.getElementById('conn-status').className = "status-tag status-off";
@@ -265,114 +327,6 @@ html, body { font-size: 16px !important; }
         const writer = port.writable.getWriter();
         await writer.write(new TextEncoder().encode(payload + "\n"));
         writer.releaseLock();
-
-        // acknowledgement 읽기
-        try {
-            const textDecoder = new TextDecoder();
-            reader = port.readable.getReader();
-            let line = "";
-            const start = Date.now();
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                line += textDecoder.decode(value);
-                if (line.includes("\n")) break;
-                if (Date.now() - start > 3000) {
-                    debugLog("⚠️ 기기 응답 없음 (timeout)");
-                    break;
-                }
-            }
-            reader.releaseLock();
-            if (line.length) {
-                const trimmed = line.trim();
-                debugLog("Device response: " + trimmed.replace(/</g,'&lt;'));
-            }
-        } catch (e) {
-            debugLog("Error reading response: " + e.message);
-            if (reader) try { reader.releaseLock(); } catch(err){}
-        }
-    }
-
-    async function uploadFirmware(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        if (!port) return alert("기기가 연결되어 있지 않습니다.");
-        showStatus("펌웨어 전송 중...", file.name);
-        debugLog(`Uploading firmware ${file.name} (${file.size} bytes)`);
-        const array = await file.arrayBuffer();
-        const writer = port.writable.getWriter();
-        // notify device of upcoming size
-        await writer.write(new TextEncoder().encode(`FWUP ${array.byteLength}\n`));
-        // send raw binary
-        await writer.write(new Uint8Array(array));
-        writer.releaseLock();
-        // read response line
-        try {
-            const decoder = new TextDecoder();
-            reader = port.readable.getReader();
-            let line = "";
-            const start = Date.now();
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                line += decoder.decode(value);
-                if (line.includes("\n")) break;
-                if (Date.now() - start > 10000) {
-                    debugLog("Firmware: 응답 타임아웃");
-                    break;
-                }
-            }
-            reader.releaseLock();
-            if (line.length) debugLog("Firmware response: " + line.trim());
-        } catch(e) {
-            debugLog("Firmware upload read error: " + e.message);
-            if (reader) try { reader.releaseLock(); } catch(err){}
-        }
-        hideStatus();
-    }
-
-    // 서버(로컬 HTTP 서버)에서 미리 커밋된 firmware 파일을 불러와 기기로 전송
-    async function uploadFirmwareFromServer() {
-        // manifest.json에서 펌웨어 파일 이름을 자동으로 추출합니다.
-        let fwUrl = 'firmware.bin';
-        try {
-            const mresp = await fetch('manifest.json');
-            if (mresp.ok) {
-                const manifest = await mresp.json();
-                // build parts에 firmware-*.bin 항목 찾기
-                if (manifest.builds && Array.isArray(manifest.builds)) {
-                    for (const build of manifest.builds) {
-                        if (build.parts && Array.isArray(build.parts)) {
-                            const found = build.parts.find(p => typeof p.path === 'string' && /firmware.*\.bin$/i.test(p.path));
-                            if (found) {
-                                fwUrl = found.path;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (manifest.version) {
-                    debugLog('Manifest version ' + manifest.version + ', using ' + fwUrl);
-                }
-            }
-        } catch (e) {
-            debugLog('manifest load error: ' + e.message);
-        }
-        try {
-            showStatus('서버에서 펌웨어 다운로드 중...', fwUrl);
-            const resp = await fetch(fwUrl);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const array = await resp.arrayBuffer();
-            debugLog(`Fetched firmware from server (${array.byteLength} bytes)`);
-            // Blob을 사용해 기존 코드 재사용
-            const blob = new Blob([array]);
-            const tmpEvent = { target: { files: [blob] } };
-            await uploadFirmware(tmpEvent);
-        } catch (err) {
-            hideStatus();
-            alert('서버 펌웨어 다운로드 실패: ' + err.message);
-            debugLog('updateFromServer error: ' + err.message);
-        }
     }
 
     function sendReset() { if(confirm("기기를 초기 공장설정으로 리셋하시겠습니까?")) sendCommand("RESET"); }
@@ -383,6 +337,165 @@ html, body { font-size: 16px !important; }
         document.getElementById('progress-step').innerText = step;
     }
     function hideStatus() { document.getElementById('progress-overlay').style.display = 'none'; }
+
+    // internal helper: upload given arraybuffer/blob as firmware
+    async function uploadFirmwareArray(buffer, name) {
+        if (!port) return alert("기기가 연결되어 있지 않습니다.");
+        showStatus("펌웨어 전송 준비...", name || "");
+        // start reading device messages in parallel
+        let readCancelled = false;
+        const decoder = new TextDecoder();
+        const startReader = async () => {
+            try {
+                const rdr = port.readable.getReader();
+                while (!readCancelled) {
+                    const { value, done } = await rdr.read();
+                    if (done) break;
+                    if (value) {
+                        const txt = decoder.decode(value);
+                        console.log('[device]', txt.replace(/\r?\n/g,'\\n'));
+                        debugLog('[device] ' + txt);
+                    }
+                }
+                rdr.releaseLock();
+            } catch(e) {
+                // ignore
+            }
+        };
+        startReader();
+        const array = buffer instanceof ArrayBuffer ? buffer : await buffer.arrayBuffer();
+        const total = array.byteLength;
+        logFw('[firmware] starting upload ' + name + ' ' + total + ' bytes');
+        const writer = port.writable.getWriter();
+        await writer.write(new TextEncoder().encode(`FWUP ${total}\n`));
+        const CHUNK = 1024; // smaller chunks give more frequent progress updates
+        let sent = 0;
+        while (sent < total) {
+            const slice = array.slice(sent, sent + CHUNK);
+            if (DEBUG_FIRMWARE_CHUNK) {
+                logFw('[firmware] writing chunk ' + slice.byteLength + ' bytes');
+                // show first few bytes as hex
+                const hex = Array.from(new Uint8Array(slice.slice(0, Math.min(slice.byteLength,16))))
+                            .map(b=>b.toString(16).padStart(2,'0')).join(' ');
+                logFw('[firmware] chunk hex ' + hex + (slice.byteLength>16?' ...':''));
+            }
+            await writer.write(new Uint8Array(slice));
+            sent += slice.byteLength;
+            showStatus("펌웨어 전송 중...", `${name} ${((sent/total)*100).toFixed(1)}%`);
+        }
+        writer.releaseLock();
+        // read until FW_DONE or FW_FAIL comes back (or timeout)
+        try {
+            showStatus('업데이트 확인 중...', '대기');
+            const decoder = new TextDecoder();
+            reader = port.readable.getReader();
+            let response = '';
+            // cancel the reader after timeout
+            const cancelTimer = setTimeout(() => {
+                if (reader) {
+                    try { reader.cancel(); } catch(e) {}
+                }
+            }, 5000);
+            while (true) {
+                try {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        response += decoder.decode(value);
+                        if (response.includes('FW_DONE') || response.includes('FW_FAIL')) break;
+                    }
+                } catch(err) {
+                    // likely cancelled or timeout
+                    break;
+                }
+            }
+            clearTimeout(cancelTimer);
+            try { reader.releaseLock(); } catch(e) {}
+            if (response.length) {
+                console.log('[firmware] update response', response.replace(/\r|\n/g,' '));
+                debugLog('FW response: ' + response.replace(/\r|\n/g,' '));
+                if (response.includes('FW_DONE')) {
+                    // assume new version installed
+                    if (manifestVersion) {
+                        curFwVersion = manifestVersion;
+                        updateHeaderVersions();
+                    }
+                } else if (response.includes('FW_FAIL')) {
+                    alert('펌웨어 업로드 실패 (장치에서 오류 응답)');
+                    hideStatus();
+                    return;
+                }
+            }
+        } catch(e) {
+            debugLog('Firmware update read error: ' + e.message);
+            if (reader) try { reader.releaseLock(); } catch(e){}
+        }
+        hideStatus();
+        alert('펌웨어 업로드 완료\n기기가 자동으로 재시작됩니다.');
+        try { disconnectDevice(); } catch(e) {}
+        // reload immediately to hide any transient USB error messages from boot
+        location.reload();
+    }
+
+
+    // 서버(로컬 HTTP 서버)에서 미리 커밋된 firmware 파일을 불러와 기기로 전송
+    // (기존 UI/키맵 기능에 영향을 주지 않음)
+    async function uploadFirmwareFromServer() {
+        // 항상 최신 manifest를 먼저 가져와서 버전 정보를 갱신
+        await fetchManifestVersion();
+        // manifest.json에서 펌웨어 파일 이름을 자동으로 추출합니다.
+        let fwUrl = 'firmware.bin';
+        let manifestOK = false;
+        try {
+            const mresp = await fetch('manifest.json?t=' + Date.now());
+            if (mresp.ok) {
+                manifestOK = true;
+                const manifest = await mresp.json();
+                // build parts에 firmware-*.bin 항목 찾기
+                if (manifest.builds && Array.isArray(manifest.builds)) {
+                    for (const build of manifest.builds) {
+                        if (build.parts && Array.isArray(build.parts)) {
+                            const found = build.parts.find(p => typeof p.path === 'string' && /firmware.*\.bin$/i.test(p.path));
+                            if (found) {
+                                fwUrl = found.path;
+                                debugLog('[manifest] using fwUrl ' + fwUrl);
+                                console.log('[manifest] using fwUrl', fwUrl);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (manifest.version) {
+                    debugLog('Manifest version ' + manifest.version + ', using ' + fwUrl);
+                }
+            } else {
+                debugLog('manifest fetch failed HTTP ' + mresp.status);
+            }
+        } catch (e) {
+            debugLog('manifest load error: ' + e.message);
+        }
+        if (!manifestOK) {
+            alert('manifest.json을 가져오지 못했습니다. 서버에 manifest.json이 존재하는지 확인하세요.\n계속 진행시 기본 firmware.bin을 시도합니다.');
+        }
+        try {
+            const fwUrlWithTs = fwUrl + '?t=' + Date.now();
+            showStatus('서버에서 펌웨어 다운로드 중...', fwUrlWithTs);
+            console.log('[firmware] fetching', fwUrlWithTs);
+            debugLog('[firmware] fetching ' + fwUrlWithTs);
+            const resp = await fetch(fwUrlWithTs);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const array = await resp.arrayBuffer();
+            console.log('[firmware] downloaded', array.byteLength, 'bytes');
+            debugLog(`Fetched firmware from server (${array.byteLength} bytes)`);
+            // Blob을 사용해 기존 코드 재사용
+            const blob = new Blob([array]);
+            await uploadFirmwareArray(blob, fwUrl);
+        } catch (err) {
+            hideStatus();
+            alert('서버 펌웨어 다운로드 실패: ' + err.message + '\nURL: ' + fwUrl);
+            debugLog('updateFromServer error: ' + err.message);
+        }
+    }
 
     async function uploadData() {
         if (!port) return alert("기기를 먼저 연결해주세요.");
@@ -444,15 +557,19 @@ html, body { font-size: 16px !important; }
                 }
                 debugLog('JSON 파싱 및 구조 검증 성공!');
                 config = parsed;
-                // debug: 각 키값 확인
-                try {
-                    config.layers.forEach((layer, li) => {
-                        layer.keys.forEach((k, ki) => {
-                            debugLog(`[uploaded] L${li} K${ki} = ` + JSON.stringify(k));
-                        });
+                if (parsed.fwVersion) {
+                    curFwVersion = parsed.fwVersion;
+                    updateHeaderVersions();
+                }
+                // make sure each layer has exactly 11 key objects to avoid undefined entries
+                // (note: layerTitles are removed when sending config to device, this does not affect firmware)
+                if (Array.isArray(config.layers)) {
+                    config.layers.forEach(layer => {
+                        if (!Array.isArray(layer.keys)) layer.keys = [];
+                        while (layer.keys.length < 11) {
+                            layer.keys.push({type:0,key1:0,key2:0,macro:""});
+                        }
                     });
-                } catch(e) {
-                    debugLog('uploaded inspect failed: ' + e.message);
                 }
                 // 웹UI에서만 layerTitles 관리: 기기에서 오면 없으니 기본값으로 생성
                 if (!config.layerTitles || !Array.isArray(config.layerTitles) || config.layerTitles.length !== 4) {
