@@ -47,6 +47,10 @@
         .type-ui.active { display: block; }
         
         #buzzer-modal { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--accent); padding: 25px; border-radius: 12px; z-index: 100; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.6); width: 320px; }
+
+        header div[style*="font-weight:bold"] {
+            font-size: 1.5em; /* Adjust the size as needed */
+        }
     </style>
 </head>
 <body>
@@ -60,7 +64,7 @@
 </div>
 
 <header>
-    <div style="font-weight:bold; margin-right:10px; color:var(--accent);">MACROPAD v18.7 FINAL</div>
+    <div style="font-weight:bold; margin-right:10px; color:var(--accent);">MACROPAD v1.0</div>
     <span id="fw-info" style="font-size:0.9em; color:#8b949e; margin-right:10px;"></span>
     <span id="conn-status" class="status-tag status-off">○ 연결 해제됨</span>
     <button class="btn btn-blue" id="btn-conn" onclick="connectDevice()">기기 연결</button>
@@ -363,7 +367,7 @@
 
 
 
-    // internal helper: upload given arraybuffer/blob as firmware
+    // internal helper: upload given arraybuffer/blobs as firmware
     async function uploadFirmwareArray(buffer, name) {
         if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
         // clear logs from any prior upload attempt
