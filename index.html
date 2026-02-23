@@ -70,8 +70,6 @@
     <button class="btn" onclick="uploadData()">현재값 다운로드</button>
     <button class="btn" onclick="downloadConfig()">설정값 업로드</button>
     <button class="btn btn-orange" onclick="uploadFirmwareFromServer()">서버 펌웨어 업로드</button>
-    <button class="btn btn-orange" onclick="document.getElementById('fw-in').click()">로컬 펌웨어 업로드</button>
-    <input type="file" id="fw-in" style="display:none" accept=".bin" onchange="uploadFirmwareFromLocal(event)">
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="saveToFile()">파일 저장</button>
     <button class="btn" onclick="document.getElementById('f-in').click()">파일 읽기</button>
@@ -490,17 +488,6 @@
 
     // 서버(로컬 HTTP 서버)에서 미리 커밋된 firmware 파일을 불러와 기기로 전송
     // (기존 UI/키맵 기능에 영향을 주지 않음)
-    async function uploadFirmwareFromLocal(e) {
-        // user-selected binary file
-        if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
-        const file = e.target.files[0];
-        if (!file) return;
-        debugLog('local firmware file chosen: ' + file.name + ' (' + file.size + ' bytes)');
-        await uploadFirmwareArray(file, file.name);
-        // reset input so same file can be reused if needed
-        e.target.value = null;
-    }
-
     async function uploadFirmwareFromServer() {
         // 항상 최신 manifest를 먼저 가져와서 버전 정보를 갱신
         await fetchManifestVersion();
