@@ -70,6 +70,8 @@
     <button class="btn" onclick="uploadData()">현재값 다운로드</button>
     <button class="btn" onclick="downloadConfig()">설정값 업로드</button>
     <button class="btn btn-orange" onclick="uploadFirmwareFromServer()">서버 펌웨어 업로드</button>
+    <button class="btn btn-orange" onclick="document.getElementById('fw-in').click()">로컬 펌웨어 업로드</button>
+    <input type="file" id="fw-in" style="display:none" accept=".bin" onchange="uploadFirmwareFromLocal(event)">
     <div style="width: 1px; height: 25px; background: var(--border); margin: 0 5px;"></div>
     <button class="btn" onclick="saveToFile()">파일 저장</button>
     <button class="btn" onclick="document.getElementById('f-in').click()">파일 읽기</button>
@@ -352,8 +354,9 @@
     function hideStatus() { document.getElementById('progress-overlay').style.display = 'none'; }
 
     function doReboot() {
-        debugLog('Sending RESET to device');
-        sendCommand('RESET');
+        debugLog('Sending REBOOT to device');
+        sendCommand('REBOOT');
+        // device will restart itself, just reload UI after a short delay
         setTimeout(() => {
             try { disconnectDevice(); } catch(e) {}
             location.reload();
@@ -365,8 +368,16 @@
     // internal helper: upload given arraybuffer/blob as firmware
     async function uploadFirmwareArray(buffer, name) {
         if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
+        // clear logs from any prior upload attempt
+        fwLogs = [];
         showStatus("펌웨어 전송 준비...", name || "");
         // start reading device messages in parallel using a shared reader
+        // cancel any previous reader so we don't fight over the stream
+        if (reader) {
+            try { readCancelled = true; await reader.cancel(); } catch(e) {}
+            try { reader.releaseLock(); } catch(e) {}
+            reader = null;
+        }
         let readCancelled = false;
         const decoder = new TextDecoder();
         const startReader = async () => {
@@ -404,7 +415,9 @@
         logFw('[firmware] starting upload ' + name + ' ' + total + ' bytes');
         const writer = port.writable.getWriter();
         await writer.write(new TextEncoder().encode(`FWUP ${total}\n`));
-        const CHUNK = 1024; // smaller chunks give more frequent progress updates
+        // use a smaller chunk and throttle slightly to avoid overflowing
+        // the serial buffer; waiting on writer.ready ensures backpressure.
+        const CHUNK = 512; // reduced size to play safe
         let sent = 0;
         while (sent < total) {
             const slice = array.slice(sent, sent + CHUNK);
@@ -415,10 +428,21 @@
                             .map(b=>b.toString(16).padStart(2,'0')).join(' ');
                 logFw('[firmware] chunk hex ' + hex + (slice.byteLength>16?' ...':''));
             }
-            await writer.write(new Uint8Array(slice));
+            try {
+                await writer.write(new Uint8Array(slice));
+            } catch(writeErr) {
+                debugLog('write error: ' + writeErr);
+                console.error('firmware write error', writeErr);
+                break;
+            }
+            // wait until the underlying stream is ready for more data
+            try { await writer.ready; } catch(e) { /* ignore */ }
+            // small pause to give the device time to consume
+            await new Promise(r=>setTimeout(r, 2));
             sent += slice.byteLength;
             showStatus("펌웨어 전송 중...", `${name} ${((sent/total)*100).toFixed(1)}%`);
         }
+        logFw('[firmware] total sent: ' + sent + ' / ' + total + ' bytes');
         writer.releaseLock();
         // wait up to 5s for an FW_DONE/FW_FAIL or any error text to appear in fwLogs
         try {
@@ -434,40 +458,49 @@
             const response = fwLogs.join('\n');
             console.log('[firmware] update response', response.replace(/\r|\n/g,' '));
             debugLog('FW response: ' + response.replace(/\r|\n/g,' '));
+            const hadDone = response.includes('FW_DONE');
+            const hadFail = response.includes('FW_FAIL') || /error/i.test(response) || /fail/i.test(response);
             // failure detection
-            if (response.includes('FW_FAIL') || /error/i.test(response) || /fail/i.test(response)) {
-                debugLog('펌웨어 업로드 실패: 장치가 오류를 보고했습니다.\n\n로그:\n' + fwLogs.join('\n'));
+            if (!hadDone || hadFail) {
+                debugLog('펌웨어 업로드 실패: 완료 신호가 없거나 오류가 발생했습니다.\n\n로그:\n' + response);
                 hideStatus();
                 return;
             }
-            if (response.includes('FW_DONE')) {
-                if (manifestVersion) {
-                    curFwVersion = manifestVersion;
-                    updateHeaderVersions();
-                }
+            if (hadDone && manifestVersion) {
+                curFwVersion = manifestVersion;
+                updateHeaderVersions();
             }
         } catch(e) {
             debugLog('Firmware update polling error: ' + e.message);
             if (reader) try { reader.releaseLock(); } catch(e){}
         }
         hideStatus();
-        // confirm restart without logs
+        // device already restarts on its own; inform user and reload UI shortly
         try {
-            const msg = '펌웨어 업로드 완료\n기기가 자동으로 재시작됩니다.';
-            if (confirm(msg)) {
-                doReboot();
-            }
-        } catch(e) {
-            // ignore
-        }
+            showStatus('펌웨어 업로드 완료', '기기를 재시작 중...');
+        } catch(e) {}
+        setTimeout(() => {
+            try { disconnectDevice(); } catch(e) {}
+            location.reload();
+        }, 3000);
         // persist logs in case page reload hides them
         try { localStorage.setItem('fwLogs', JSON.stringify(fwLogs)); } catch(e) {}
-        // do not auto-reload; user can also press reboot button
     }
 
 
     // 서버(로컬 HTTP 서버)에서 미리 커밋된 firmware 파일을 불러와 기기로 전송
     // (기존 UI/키맵 기능에 영향을 주지 않음)
+    async function uploadFirmwareFromLocal(e) {
+        // user-selected binary file
+        if (!port) { debugLog("기기가 연결되어 있지 않습니다."); return; }
+        const file = e.target.files[0];
+        if (!file) return;
+        debugLog('local firmware file chosen: ' + file.name + ' (' + file.size + ' bytes)');
+        await uploadFirmwareArray(file, file.name);
+        // reset input so same file can be reused if needed
+        e.target.value = null;
+    }
+
     async function uploadFirmwareFromServer() {
         // 항상 최신 manifest를 먼저 가져와서 버전 정보를 갱신
         await fetchManifestVersion();
