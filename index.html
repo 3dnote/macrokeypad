@@ -100,8 +100,8 @@
             <div class="key-grid" id="main-grid"></div>
             <div style="display:flex; flex-direction:column; align-items:center;">
                 <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <div class="k-unit" style="width:80px;" id="box-9" onclick="selK(9)"><b>CW</b><span id="lb-9">None</span></div>
-                    <div class="k-unit" style="width:80px;" id="box-10" onclick="selK(10)"><b>CCW</b><span id="lb-10">None</span></div>
+                    <div class="k-unit" style="width:80px;" id="box-9" onclick="selK(9)"><b>CCW</b><span id="lb-9">None</span></div>
+                    <div class="k-unit" style="width:80px;" id="box-10" onclick="selK(10)"><b>CW</b><span id="lb-10">None</span></div>
                 </div>
                 <div style="width:130px; height:130px; border-radius:50%; border:5px solid #30363d; background:radial-gradient(#444, #111);"></div>
             </div>
@@ -132,9 +132,10 @@
                 <button class="btn" onclick="applyValue('Vol+', 2)">Volume +</button>
                 <button class="btn" onclick="applyValue('Vol-', 2)">Volume -</button>
                 <button class="btn" onclick="applyValue('Mute', 2)">Mute</button>
-                <button class="btn" onclick="applyValue('Play', 2)">Play/Pause</button>
-                <button class="btn" onclick="applyValue('Next', 2)">Next Track</button>
-                <button class="btn" onclick="applyValue('Prev', 2)">Prev Track</button>
+                <button class="btn" onclick="applyValue('Play/Pause', 2)">Play/Pause</button>
+                <button class="btn" onclick="applyValue('Next Track', 2)">Next Track</button>
+                <button class="btn" onclick="applyValue('Prev Track', 2)">Prev Track</button>
+                <button class="btn" onclick="applyValue('Stop', 2)">Stop</button>
             </div>
         </div>
 
@@ -662,7 +663,7 @@
         curK = i;
         document.querySelectorAll('.k-unit').forEach(el => el.classList.remove('active'));
         document.getElementById(`box-${i}`).classList.add('active');
-        document.getElementById('status-text').innerText = `[레이어 ${curL}] ${i < 9 ? 'K'+(i+1) : (i===9?'CW':'CCW')} 설정`;
+        document.getElementById('status-text').innerText = `[레이어 ${curL}] ${i < 9 ? 'K'+(i+1) : (i===9?'CCW':'CW')} 설정`;
         // 현재 설정된 값 출력
         try {
             const key = config.layers[curL].keys[curK];
@@ -736,8 +737,24 @@
             config.layers[curL].keys[curK] = { type: 3, key1: 0, key2: 0, macro: val };
             document.getElementById(`lb-${curK}`).innerText = val;
         } else if (type === 2) {
-            // 미디어 컨트롤 등 (간단 처리)
-            config.layers[curL].keys[curK] = { type: 2, key1: 0, key2: 0, macro: val };
+            // 미디어 키: 이름을 미디어 사용 코드로 변환하고 type=4로 저장
+            // 이름 문자열은 MEDIA_KEY_NAMES에서 표시되는 값과 일치해야 함
+            const MEDIA_KEY_CODES = {
+                'Vol+': 0xE9,
+                'Vol-': 0xEA,
+                'Mute': 0xE2,
+                'Play/Pause': 0xCD,
+                'Next Track': 0xB5,
+                'Prev Track': 0xB6,
+                'Stop': 0xB7
+            };
+            let code = MEDIA_KEY_CODES[val] || 0;
+            config.layers[curL].keys[curK] = {
+                type: 4,
+                key1: code,
+                key2: 0,
+                macro: ""
+            };
             document.getElementById(`lb-${curK}`).innerText = val;
         }
     }
@@ -804,12 +821,12 @@
                 // ...필요시 추가...
             };
             const MEDIA_KEY_NAMES = {
-                233: 'Vol+', 234: 'Vol-', 226: 'Mute', 181: 'Play/Pause', 182: 'Next', 183: 'Prev', 205: 'Stop',
+                233: 'Vol+', 234: 'Vol-', 226: 'Mute', 181: 'Play/Pause', 182: 'Next Track', 183: 'Prev Track', 205: 'Stop',
                 // ...필요시 추가...
             };
             // 엔코더 HID 코드 매핑
             const ENCODER_KEY_NAMES = {
-                75: 'CW', 78: 'CCW',
+                75: 'CCW', 78: 'CW',
             };
             const SPECIAL_KEY_NAMES = {
                 182: 'Special1', 205: 'Special2', 181: 'Special3', 226: 'Special4', 183: 'Special5',
